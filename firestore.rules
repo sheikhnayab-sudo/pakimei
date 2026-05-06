@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidReport(data) {
+      let requiredKeys = ['ownerName', 'nicNumber', 'address', 'contactNumber', 'whatsappNumber', 'lossDateTime', 'lossLocation', 'imei', 'imei2', 'brand', 'model', 'color', 'reportType', 'description', 'status', 'createdAt', 'userId', 'userEmail', 'verified', 'hasPoliceReport', 'proofType', 'proofImageUrl'];
+      return data.keys().hasAll(requiredKeys) &&
+             data.keys().size() == requiredKeys.size() &&
+             data.ownerName is string && data.ownerName.size() >= 3 && data.ownerName.size() <= 100 &&
+             data.nicNumber is string && data.nicNumber.matches('^[0-9]{5}-[0-9]{7}-[0-9]{1}$') &&
+             data.address is map &&
+             data.address.city is string &&
+             data.contactNumber is string && data.contactNumber.size() <= 15 &&
+             data.whatsappNumber is string && data.whatsappNumber.size() <= 15 &&
+             data.lossLocation is string && data.lossLocation.size() <= 256 &&
+             data.imei is string && data.imei.size() == 15 &&
+             data.imei2 is string && (data.imei2 == "" || data.imei2.size() == 15) &&
+             data.brand is string &&
+             data.model is string && data.model.size() <= 100 &&
+             data.color is string && data.color.size() <= 64 &&
+             data.reportType in ['stolen', 'lost'] &&
+             data.description is string && data.description.size() <= 1000 &&
+             data.hasPoliceReport in ['yes', 'no'] &&
+             data.proofType in ['police_report', 'box_image', 'purchase_slip'] &&
+             data.proofImageUrl is string && (data.proofImageUrl == "" || data.proofImageUrl.size() <= 1024) &&
+             data.status in ['pending', 'verified', 'flagged'] &&
+             data.verified is bool &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.userEmail is string && data.userEmail.size() <= 200;
+    }
+
+    match /reports/{reportId} {
+      allow read: if true; 
+
+      allow create: if request.auth != null &&
+                       isValidReport(request.resource.data) && 
+                       request.resource.data.userId == request.auth.uid &&
+                       request.resource.data.status == 'pending' &&
+                       request.resource.data.createdAt == request.time;
+      
+      allow update: if request.auth != null && 
+                       request.auth.uid == resource.data.userId &&
+                       isValidReport(request.resource.data) &&
+                       request.resource.data.userId == resource.data.userId &&
+                       request.resource.data.createdAt == resource.data.createdAt;
+
+      allow delete: if request.auth != null && 
+                       request.auth.uid == resource.data.userId;
+    }
+  }
+}

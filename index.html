@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Pakistan ka free IMEI registry. Chori ya gumshuda mobile register karein." />
+    <meta property="og:title" content="PakIMEI - Gumshuda Mobile Phone Dhoondein" />
+    <meta property="og:description" content="Pakistan ka pehla free IMEI registry platform" />
+    <title>PakIMEI - Pakistan's Free IMEI Registry</title>
+  </head>
+  <body>
+    <script>
+      // Fix for "Cannot set property fetch of #<Window> which has only a getter"
+      // This happens when libraries try to overwrite fetch in some sandboxed environments.
+      (function() {
+        try {
+          var originalFetch = window.fetch;
+          if (originalFetch && !Object.getOwnPropertyDescriptor(window, 'fetch')?.writable) {
+            Object.defineProperty(window, 'fetch', {
+              value: originalFetch,
+              writable: true,
+              configurable: true,
+              enumerable: true
+            });
+          }
+        } catch (e) {
+          console.warn('Failed to make fetch writable:', e);
+        }
+      })();
+    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

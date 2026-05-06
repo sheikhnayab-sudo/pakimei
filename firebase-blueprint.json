@@ -1,0 +1,46 @@
+{
+  "entities": {
+    "report": {
+      "title": "Stolen or Lost Device Report",
+      "description": "Represents a mobile phone theft or loss report details with full owner and device information.",
+      "type": "object",
+      "properties": {
+        "ownerName": { "type": "string", "description": "Full name of the owner." },
+        "nicNumber": { "type": "string", "description": "Pakistani NIC of the owner." },
+        "address": {
+          "type": "object",
+          "properties": {
+            "street": { "type": "string" },
+            "town": { "type": "string" },
+            "city": { "type": "string" }
+          }
+        },
+        "contactNumber": { "type": "string" },
+        "whatsappNumber": { "type": "string" },
+        "lossDateTime": { "type": "string", "format": "date-time" },
+        "lossLocation": { "type": "string" },
+        "imei": { "type": "string" },
+        "imei2": { "type": "string" },
+        "brand": { "type": "string" },
+        "model": { "type": "string" },
+        "color": { "type": "string" },
+        "reportType": { "type": "string", "enum": ["stolen", "lost"] },
+        "description": { "type": "string" },
+        "hasPoliceReport": { "type": "string", "enum": ["yes", "no"] },
+        "proofType": { "type": "string", "enum": ["police_report", "box_image", "purchase_slip"] },
+        "proofImageUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "verified", "flagged"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" }
+      },
+      "required": ["ownerName", "nicNumber", "address", "contactNumber", "whatsappNumber", "lossDateTime", "lossLocation", "imei", "brand", "model", "color", "reportType", "status", "createdAt", "userId", "userEmail", "hasPoliceReport", "proofType", "proofImageUrl"]
+    }
+  },
+  "firestore": {
+    "reports": {
+      "schema": "report",
+      "description": "Central registry of stolen/lost mobile devices in Pakistan."
+    }
+  }
+}
