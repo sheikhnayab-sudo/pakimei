@@ -5,7 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { Search, PlusCircle, Info, Menu, X, Languages, LogOut, User, LayoutGrid } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../firebase';
-import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { collection, query, limit, getDocs } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 
 const Header: React.FC = () => {
   const { t, language, setLanguage } = useLanguage();
@@ -28,11 +29,20 @@ const Header: React.FC = () => {
           return;
         }
 
-        const q = query(collection(db, 'reports'), orderBy('createdAt', 'desc'), limit(1));
+        // Using a simpler query without orderBy to bypass permission/index issues
+        const q = query(collection(db, 'phones'), limit(10));
         const snapshot = await getDocs(q);
         
         if (!snapshot.empty) {
-          const latestReport = snapshot.docs[0].data();
+          const docs = snapshot.docs.map(d => d.data());
+          // Sort client-side
+          docs.sort((a, b) => {
+            const timeA = a.createdAt?.seconds || 0;
+            const timeB = b.createdAt?.seconds || 0;
+            return timeB - timeA;
+          });
+
+          const latestReport = docs[0];
           const createdAt = latestReport.createdAt?.toDate()?.getTime() || 0;
           if (createdAt > parseInt(lastVisited)) {
             setHasNewReports(true);
@@ -40,6 +50,12 @@ const Header: React.FC = () => {
         }
       } catch (err) {
         console.error("Error checking new reports:", err);
+        // We log more details but don't crash the header
+        try {
+          handleFirestoreError(err, OperationType.LIST, 'phones');
+        } catch (e) {
+          // just for logging to console in json format
+        }
       }
     };
 

@@ -15,8 +15,8 @@ import {
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 
-// Cache for reports to show instantly on navigation
-const reportsCache = {
+// Cache for phones to show instantly on navigation
+const phonesCache = {
   data: [] as Report[],
   lastDoc: null as QueryDocumentSnapshot<DocumentData> | null
 };
@@ -67,8 +67,8 @@ const SkeletonCard = () => (
 const FeedPage: React.FC = () => {
   const { t } = useLanguage();
   const { currentUser, login } = useAuth();
-  const [reports, setReports] = useState<Report[]>(reportsCache.data);
-  const [loading, setLoading] = useState(reportsCache.data.length === 0);
+  const [phones, setPhones] = useState<Report[]>(phonesCache.data);
+  const [loading, setLoading] = useState(phonesCache.data.length === 0);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const isRefreshing = useRef(false);
@@ -78,9 +78,9 @@ const FeedPage: React.FC = () => {
     
     try {
       setDeleting(true);
-      await deleteDoc(doc(db, 'reports', deleteId));
+      await deleteDoc(doc(db, 'phones', deleteId));
       toast.success('Entry successfully delete ho gayi ✅');
-      setReports(prev => prev.filter(r => r.id !== deleteId));
+      setPhones(prev => prev.filter(r => r.id !== deleteId));
       setDeleteId(null);
     } catch (err) {
       console.error("Delete Error:", err);
@@ -93,7 +93,7 @@ const FeedPage: React.FC = () => {
   useEffect(() => {
     // Simplified query to fix performance and avoiding index requirements
     const q = query(
-      collection(db, 'reports'),
+      collection(db, 'phones'),
       limit(20)
     );
 
@@ -110,8 +110,8 @@ const FeedPage: React.FC = () => {
         return timeB - timeA;
       });
 
-      setReports(data);
-      reportsCache.data = data;
+      setPhones(data);
+      phonesCache.data = data;
       setLoading(false);
     }, (error) => {
       console.error("Feed Query Error:", error);
@@ -183,7 +183,7 @@ const FeedPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
         </div>
-      ) : reports.length === 0 ? (
+      ) : phones.length === 0 ? (
         <div className="text-center py-20 card-glass rounded-3xl p-10 border border-white/10">
           <Smartphone size={64} className="mx-auto text-white/20 mb-6" />
           <h3 className="text-2xl font-bold text-white mb-4">{t('feed_empty')}</h3>
@@ -192,7 +192,7 @@ const FeedPage: React.FC = () => {
       ) : (
         <div className="space-y-12">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {reports.map((report, idx) => (
+            {phones.map((report, idx) => (
               <motion.div
                 key={report.id}
                 initial={{ opacity: 0, y: 20 }}

@@ -115,9 +115,9 @@ const Search: React.FC = () => {
     setLoading(true);
     setSearched(true);
     try {
-      // Search for any report with this IMEI
-      const reportsPath = 'reports';
-      const q = query(collection(db, reportsPath), where('imei', '==', imeiToSearch));
+      // Search for any record with this IMEI
+      const phonesPath = 'phones';
+      const q = query(collection(db, phonesPath), where('imei', '==', imeiToSearch));
       const querySnapshot = await getDocs(q);
       
       if (!querySnapshot.empty) {
@@ -135,7 +135,7 @@ const Search: React.FC = () => {
       if (error?.message?.includes('offline')) {
         toast.error(t('reg_error_offline'));
       } else {
-        handleFirestoreError(error, OperationType.LIST, 'reports');
+        handleFirestoreError(error, OperationType.LIST, 'phones');
       }
     } finally {
       setLoading(false);

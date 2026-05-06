@@ -14,6 +14,8 @@ import FeedPage from './components/FeedPage';
 
 const App: React.FC = () => {
   useEffect(() => {
+    console.log('Firebase Project ID:', import.meta.env.VITE_FIREBASE_PROJECT_ID);
+    
     const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
     if (publicKey) {
       emailjs.init(publicKey);

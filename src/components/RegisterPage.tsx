@@ -58,7 +58,7 @@ const Register: React.FC = () => {
 
   const checkIfSaved = async (imei: string) => {
     try {
-      const q = query(collection(db, 'reports'), where('imei', '==', imei));
+      const q = query(collection(db, 'phones'), where('imei', '==', imei));
       const snap = await getDocs(q);
       return !snap.empty;
     } catch (e) {
@@ -100,10 +100,10 @@ const Register: React.FC = () => {
   };
 
   const checkDuplicates = async () => {
-    const reportsPath = 'reports';
+    const phonesPath = 'phones';
     try {
       // Check IMEI
-      const imeiQuery = query(collection(db, reportsPath), where('imei', '==', formData.imei));
+      const imeiQuery = query(collection(db, phonesPath), where('imei', '==', formData.imei));
       const imeiSnap = await getDocs(imeiQuery);
       if (!imeiSnap.empty) {
         toast.error(t('reg_error_duplicate_imei'));
@@ -111,7 +111,7 @@ const Register: React.FC = () => {
       }
 
       // Check NIC (Max 2)
-      const nicQuery = query(collection(db, reportsPath), where('nicNumber', '==', formData.nicNumber));
+      const nicQuery = query(collection(db, phonesPath), where('nicNumber', '==', formData.nicNumber));
       const nicSnap = await getDocs(nicQuery);
       if (nicSnap.size >= 2) {
         toast.error(t('reg_error_duplicate_nic'));
@@ -120,7 +120,7 @@ const Register: React.FC = () => {
 
       return true;
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, reportsPath);
+      handleFirestoreError(error, OperationType.LIST, phonesPath);
       return false;
     }
   };
@@ -283,7 +283,7 @@ const Register: React.FC = () => {
         verified: false
       };
 
-      const docRef = await addDoc(collection(db, 'reports'), reportData);
+      const docRef = await addDoc(collection(db, 'phones'), reportData);
       const refId = docRef.id.slice(0, 8).toUpperCase();
 
       // Show success screen immediately
@@ -342,7 +342,7 @@ const Register: React.FC = () => {
             });
 
             // Update Firestore with real URL
-            await updateDoc(doc(db, 'reports', docRef.id), {
+            await updateDoc(doc(db, 'phones', docRef.id), {
               proofImageUrl: finalUrl
             });
           }

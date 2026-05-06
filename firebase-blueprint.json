@@ -38,7 +38,7 @@
     }
   },
   "firestore": {
-    "reports": {
+    "phones": {
       "schema": "report",
       "description": "Central registry of stolen/lost mobile devices in Pakistan."
     }

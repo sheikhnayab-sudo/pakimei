@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { auth } from '../lib/firebase';
+import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { Shield, ShieldCheck, LogOut, Menu, X } from 'lucide-react';
 import { useState } from 'react';
