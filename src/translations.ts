@@ -6,6 +6,7 @@ export const translations = {
     nav_register: "Register Phone",
     nav_how_it_works: "How It Works",
     nav_feed: "Reported Phones",
+    nav_contact: "Contact",
     
     // Home / Hero
     hero_title: "Pakistan's National IMEI Registry",
@@ -138,6 +139,7 @@ export const translations = {
     nav_register: "Phone Register Karein",
     nav_how_it_works: "Kaam Kaise Karta Hai",
     nav_feed: "Tamaam Entries",
+    nav_contact: "Rabta",
     
     // Home / Hero
     hero_title: "Pakistan Ka National IMEI Registry",

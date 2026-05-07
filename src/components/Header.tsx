@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { Search, PlusCircle, Info, Menu, X, Languages, LogOut, User, LayoutGrid } from 'lucide-react';
+import { Search, PlusCircle, Info, Menu, X, Languages, LogOut, User, LayoutGrid, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../firebase';
 import { collection, query, limit, getDocs } from 'firebase/firestore';
@@ -67,6 +67,7 @@ const Header: React.FC = () => {
     { name: t('nav_feed'), path: '/feed', icon: <LayoutGrid size={18} />, badge: hasNewReports },
     { name: t('nav_register'), path: '/register', icon: <PlusCircle size={18} /> },
     { name: t('nav_how_it_works'), path: '/how-it-works', icon: <Info size={18} /> },
+    { name: t('nav_contact'), path: '/contact', icon: <Mail size={18} /> },
   ];
 
   return (

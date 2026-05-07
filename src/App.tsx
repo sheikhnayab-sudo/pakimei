@@ -11,6 +11,7 @@ import Register from './components/RegisterPage';
 import Search from './components/SearchPage';
 import HowItWorks from './components/HowItWorks';
 import FeedPage from './components/FeedPage';
+import ContactPage from './components/ContactPage';
 
 const App: React.FC = () => {
   useEffect(() => {
@@ -65,6 +66,7 @@ const App: React.FC = () => {
               <Route path="/search" element={<Search />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/feed" element={<FeedPage />} />
+              <Route path="/contact" element={<ContactPage />} />
             </Routes>
           </main>
           
