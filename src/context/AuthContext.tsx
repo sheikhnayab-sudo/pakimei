@@ -2,12 +2,12 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { 
   onAuthStateChanged, 
   signInWithPopup, 
-  signInWithRedirect, 
   GoogleAuthProvider, 
   signOut, 
   User 
 } from 'firebase/auth';
 import { auth } from '../firebase';
+import { toast } from 'react-hot-toast';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -31,28 +31,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
     try {
-      if (window.innerWidth < 768) {
-        await signInWithRedirect(auth, provider);
-      } else {
-        await signInWithPopup(auth, provider);
-      }
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const result = await signInWithPopup(auth, provider);
+      return result.user;
     } catch (error: any) {
-      if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
-        console.log("Login popup closed/cancelled by user");
-        return;
-      }
-      
-      if (error.code === 'auth/unauthorized-domain') {
-        const domain = window.location.hostname;
-        alert(`This domain (${domain}) is not authorized for Firebase Auth. Please add it to your Firebase Console under Authentication > Settings > Authorized Domains.`);
-      } else if (error.code === 'auth/network-request-failed') {
-        alert("Network request failed. Please check your internet connection or browser settings (try disabling tracking protection/ad-blockers).");
-      }
-      
-      console.error("Login Error:", error);
-      throw error;
+      console.error('Login error:', error.code, error.message);
+      toast.error('Login nahi hua. Dobara try karein.');
     }
   };
 
