@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { 
   Smartphone, User, Phone, MapPin, Calendar, ClipboardCheck, 
   Lock, Hash, ShieldCheck, Map, Clock, Info, CheckSquare, Square,
-  MessageCircle, XCircle, FileText, Package, Receipt, AlertTriangle, Check
+  MessageCircle, XCircle, FileText, Package, Receipt, AlertTriangle, Check, Camera, RefreshCw, Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
@@ -14,6 +14,126 @@ import { PAKISTANI_CITIES, PHONE_BRANDS, formatNIC, validateNIC, validateIMEI } 
 import { sendConfirmationEmail } from '../services/emailService';
 import { uploadToCloudinary } from '../services/cloudinaryService';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
+
+const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [captured, setCaptured] = useState<string | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+
+  const openCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'user',
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        } 
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+      setStream(mediaStream);
+      setCameraOpen(true);
+    } catch (err) {
+      toast.error('Camera access nahi mila. Permission dein.');
+    }
+  };
+
+  const capturePhoto = () => {
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    if (!canvas || !video || !stream) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(video, 0, 0);
+    }
+    
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const file = new File([blob], `selfie_${Date.now()}.jpg`, { 
+          type: 'image/jpeg' 
+        });
+        setCaptured(URL.createObjectURL(blob));
+        onCapture(file);
+        // Stop camera
+        stream.getTracks().forEach(t => t.stop());
+        setCameraOpen(false);
+        setStream(null);
+      }
+    }, 'image/jpeg', 0.8);
+  };
+
+  const retake = () => {
+    setCaptured(null);
+    openCamera();
+  };
+
+  return (
+    <div className="space-y-4">
+      {!cameraOpen && !captured && (
+        <button 
+          onClick={openCamera} 
+          type="button"
+          className="flex flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-white/10 bg-white/5 p-10 cursor-pointer transition-all hover:border-pak-teal/50 hover:bg-white/10 w-full group"
+        >
+          <div className="rounded-full bg-pak-teal/10 p-5 text-pak-teal group-hover:scale-110 transition-transform">
+            <Camera size={40} />
+          </div>
+          <div className="text-center font-bold text-white uppercase tracking-widest text-sm">
+            📷 Camera Kholein
+          </div>
+        </button>
+      )}
+      
+      {cameraOpen && (
+        <div className="space-y-4">
+          <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-black">
+            <video ref={videoRef} autoPlay playsInline 
+              className="w-full h-auto"
+              style={{ maxHeight: 300 }}
+            />
+          </div>
+          <button 
+            onClick={capturePhoto} 
+            type="button"
+            className="w-full bg-pak-teal text-white font-black py-4 rounded-xl uppercase tracking-widest flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all"
+          >
+            <Camera size={20} /> Photo Khainchein
+          </button>
+        </div>
+      )}
+      
+      {captured && (
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative border-4 border-pak-teal rounded-2xl overflow-hidden shadow-2xl">
+            <img src={captured} 
+              alt="Selfie"
+              className="w-full h-auto max-w-[250px]"
+              style={{ objectFit: 'cover' }}
+            />
+            <div className="absolute top-2 right-2 bg-pak-teal text-white p-1 rounded-full">
+              <Check size={16} />
+            </div>
+          </div>
+          <button 
+            onClick={retake} 
+            type="button"
+            className="text-pak-teal font-bold flex items-center gap-2 hover:underline tracking-widest uppercase text-xs"
+          >
+            <RefreshCw size={14} /> Dobara Khainchein
+          </button>
+        </div>
+      )}
+      
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
+    </div>
+  );
+};
 
 const Register: React.FC = () => {
   const { t } = useLanguage();
@@ -49,6 +169,7 @@ const Register: React.FC = () => {
   });
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
@@ -250,6 +371,11 @@ const Register: React.FC = () => {
       }
     }
 
+    if (!selfieFile) {
+      toast.error('Apni live tasveer lena lazmi hai!');
+      return;
+    }
+
     setLoading(true);
     isSubmitting.current = true;
     const statusToast = toast.loading("Processing your request...");
@@ -276,6 +402,7 @@ const Register: React.FC = () => {
         city: formData.address.city, // Flatten city for easier querying and Feed display
         proofType: finalProofType,
         proofImageUrl: selectedFile ? 'uploading' : '',
+        selfieImageUrl: 'uploading',
         userId: currentUser.uid,
         userEmail: currentUser.email,
         status: 'pending' as const,
@@ -295,6 +422,7 @@ const Register: React.FC = () => {
 
       // Reset form fields but keep selectedFile for background upload
       const currentSelectedFile = selectedFile;
+      const currentSelfieFile = selfieFile;
       setFormData({
         ownerName: '',
         nicNumber: '',
@@ -316,6 +444,7 @@ const Register: React.FC = () => {
       });
       setWhatsappSameAsContact(false);
       setSelectedFile(null);
+      setSelfieFile(null);
       setFilePreview(null);
       setUploadProgress(0);
       setUploadSuccess(false);
@@ -323,11 +452,13 @@ const Register: React.FC = () => {
 
       // PHASE 2: Background Upload & Finalization
       (async () => {
-        const bgToast = toast.loading("📤 Proof image upload ho rahi hai...");
+        const bgToast = toast.loading("📤 Data upload ho raha hai...");
         try {
-          let finalUrl = '';
+          let finalProofUrl = '';
+          let finalSelfieUrl = '';
+
+          // Upload Proof if exists
           if (currentSelectedFile) {
-            // Compress image
             let uploadBlob: Blob | File = currentSelectedFile;
             if (currentSelectedFile.type.startsWith('image/')) {
               try {
@@ -337,15 +468,23 @@ const Register: React.FC = () => {
               }
             }
 
-            finalUrl = await uploadToCloudinary(uploadBlob as File, (p) => {
+            finalProofUrl = await uploadToCloudinary(uploadBlob as File, (p) => {
               toast.loading(`📤 Proof image upload ho rahi hai... ${p}%`, { id: bgToast });
             });
+          }
 
-            // Update Firestore with real URL
-            await updateDoc(doc(db, 'phones', docRef.id), {
-              proofImageUrl: finalUrl
+          // Upload Selfie (Mandatory)
+          if (currentSelfieFile) {
+            finalSelfieUrl = await uploadToCloudinary(currentSelfieFile, (p) => {
+              toast.loading(`📸 Selfie upload ho rahi hai... ${p}%`, { id: bgToast });
             });
           }
+
+          // Update Firestore with real URLs
+          await updateDoc(doc(db, 'phones', docRef.id), {
+            proofImageUrl: finalProofUrl,
+            selfieImageUrl: finalSelfieUrl
+          });
 
           // Send Email in background
           sendConfirmationEmail({
@@ -953,6 +1092,17 @@ const Register: React.FC = () => {
               )}
             </AnimatePresence>
           </div>
+        </section>
+
+        {/* SELFIE CAPTURE SECTION */}
+        <section className={groupClasses}>
+          <div className="flex items-center gap-3 border-b border-white/10 pb-5 mb-2">
+            <Camera className="text-pak-teal" size={24} />
+            <h3 className="font-display text-2xl font-bold text-white tracking-tight">📸 Apni Live Tasveer Khainchein (Lazmi)</h3>
+          </div>
+          <p className="text-white/60 text-sm font-medium mb-4">Gallery se photo upload nahi hogi — sirf live camera se capture karein.</p>
+          
+          <SelfieCapture onCapture={(file) => setSelfieFile(file)} />
         </section>
 
         <div className="pt-4">

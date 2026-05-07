@@ -46,6 +46,20 @@ const RestrictedResultCard: React.FC<{ result: any; onLogin: () => void }> = ({ 
                 <p className="text-sm font-mono text-white/50 tracking-widest">{maskIMEI(result.imei)}</p>
               </div>
             </div>
+            {result.proofType && (
+              <div className="mt-4 pt-4 border-t border-white/10">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 block mb-2">📎 Uploaded Proof:</span>
+                <span className={`inline-block px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${
+                  result.proofType === 'police_report' ? 'bg-pak-red/20 text-pak-red border-pak-red/30' :
+                  result.proofType === 'box_image' ? 'bg-pak-teal/20 text-pak-teal border-pak-teal/30' :
+                  'bg-white/10 text-white/50 border-white/20'
+                }`}>
+                  {result.proofType === 'police_report' && "🚨 Police FIR Copy"}
+                  {result.proofType === 'box_image' && "📦 Mobile Box Photo"}
+                  {result.proofType === 'purchase_slip' && "🧾 Purchase Slip"}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="glass rounded-2xl p-7 border border-white/20">
@@ -78,7 +92,7 @@ const RestrictedResultCard: React.FC<{ result: any; onLogin: () => void }> = ({ 
                 onClick={onLogin}
                 className="w-full sm:w-auto px-10 py-4 bg-white text-black rounded-2xl font-black uppercase tracking-widest text-sm hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
               >
-                Google se Login Karein
+                Log in with Google
               </button>
               <button
                 onClick={() => navigate('/register')}
@@ -96,7 +110,7 @@ const RestrictedResultCard: React.FC<{ result: any; onLogin: () => void }> = ({ 
 
 const Search: React.FC = () => {
   const { t } = useLanguage();
-  const { currentUser, login } = useAuth();
+  const { currentUser, signInWithGoogle } = useAuth();
   const [searchParams] = useSearchParams();
   const queryParam = searchParams.get('q') || '';
   const [imei, setImei] = useState(queryParam);
@@ -229,6 +243,75 @@ const Search: React.FC = () => {
                         <p className="text-sm font-mono text-white/50 tracking-widest">{result.imei}</p>
                       </div>
                     </div>
+
+                    {result.selfieImageUrl && result.selfieImageUrl !== 'uploading' && (
+                      <div className="mt-5 pt-5 border-t border-white/10 flex items-center gap-4">
+                        <img 
+                          src={result.selfieImageUrl} 
+                          alt="Owner Selfie"
+                          className="w-16 h-16 rounded-full object-cover border-4 border-pak-teal shadow-xl"
+                        />
+                        <div>
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 block">Verified Owner</span>
+                          <p className="text-white font-bold text-lg leading-tight">{result.ownerName}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {result.proofType && (
+                      <div className="mt-5 pt-5 border-t border-white/10">
+                        <span className="text-xs font-black uppercase tracking-[0.2em] text-white/40 block mb-3">📎 Uploaded Proof:</span>
+                        <div className="flex flex-wrap items-center gap-4">
+                          <span className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider border ${
+                            result.proofType === 'police_report' ? 'bg-pak-red/20 text-pak-red border-pak-red/30' :
+                            result.proofType === 'box_image' ? 'bg-pak-teal/20 text-pak-teal border-pak-teal/30' :
+                            'bg-pak-orange/20 text-pak-orange border-pak-orange/30'
+                          }`}>
+                            {result.proofType === 'police_report' && "🚨 Police FIR Copy"}
+                            {result.proofType === 'box_image' && "📦 Mobile Box Photo"}
+                            {result.proofType === 'purchase_slip' && "🧾 Purchase Slip"}
+                          </span>
+                          
+                          {result.proofImageUrl && result.proofImageUrl !== 'uploading' && (
+                            <div className="flex flex-col gap-3">
+                              <img 
+                                src={result.proofImageUrl} 
+                                alt="Proof"
+                                style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 12 }}
+                                className="border border-white/10 shadow-xl"
+                              />
+                              <a 
+                                href={result.proofImageUrl} 
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                download
+                                style={{
+                                  background: 'rgba(46,196,182,0.15)',
+                                  border: '1px solid rgba(46,196,182,0.4)',
+                                  color: '#2ec4b6',
+                                  padding: '0.5rem 1.2rem',
+                                  borderRadius: 10,
+                                  fontSize: '0.75rem',
+                                  fontWeight: '900',
+                                  textDecoration: 'none',
+                                  textAlign: 'center'
+                                }}
+                                className="hover:bg-pak-teal/25 transition-all text-center uppercase tracking-widest"
+                              >
+                                📥 Proof Download
+                              </a>
+                            </div>
+                          )}
+                          
+                          {result.proofImageUrl === 'uploading' && (
+                            <div className="flex items-center gap-2 text-white/40 text-xs font-black uppercase tracking-widest italic animate-pulse">
+                              <Loader2 size={16} className="animate-spin" />
+                              ⏳ Proof upload ho rahi hai...
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="glass rounded-2xl p-7 border border-white/20">
@@ -269,7 +352,7 @@ const Search: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <RestrictedResultCard result={result} onLogin={login} />
+              <RestrictedResultCard result={result} onLogin={signInWithGoogle} />
             )
           ) : (
             <div className="glass rounded-3xl border-2 border-pak-teal bg-pak-teal/10 p-10 shadow-2xl shadow-pak-teal/20 overflow-hidden relative">

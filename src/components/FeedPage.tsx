@@ -37,6 +37,9 @@ interface Report {
   whatsappNumber: string;
   city: string;
   userId: string;
+  proofType?: 'police_report' | 'box_image' | 'purchase_slip';
+  proofImageUrl?: string;
+  selfieImageUrl?: string;
 }
 
 const SkeletonCard = () => (
@@ -66,7 +69,7 @@ const SkeletonCard = () => (
 
 const FeedPage: React.FC = () => {
   const { t } = useLanguage();
-  const { currentUser, login } = useAuth();
+  const { currentUser, signInWithGoogle } = useAuth();
   const [phones, setPhones] = useState<Report[]>(phonesCache.data);
   const [loading, setLoading] = useState(phonesCache.data.length === 0);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -225,6 +228,50 @@ const FeedPage: React.FC = () => {
                   </div>
 
                   <div className="grid grid-cols-1 gap-4 border-t border-white/5 pt-6 text-sm">
+                    {/* Proof Section */}
+                    {report.proofType && (
+                      <div className="mb-2">
+                        <span className="text-white/40 font-medium block mb-2">📎 Uploaded Proof:</span>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                            report.proofType === 'police_report' ? 'bg-pak-red/20 text-pak-red border-pak-red/30' :
+                            report.proofType === 'box_image' ? 'bg-pak-teal/20 text-pak-teal border-pak-teal/30' :
+                            'bg-pak-orange/20 text-pak-orange border-pak-orange/30'
+                          }`}>
+                            {report.proofType === 'police_report' && "🚨 Police FIR Copy"}
+                            {report.proofType === 'box_image' && "📦 Mobile Box Photo"}
+                            {report.proofType === 'purchase_slip' && "🧾 Purchase Slip"}
+                          </span>
+                          
+                          {currentUser && report.proofImageUrl && report.proofImageUrl !== 'uploading' && (
+                            <div className="flex flex-col gap-2">
+                              <img 
+                                src={report.proofImageUrl} 
+                                alt="Proof"
+                                className="w-[100px] h-[100px] object-cover rounded-lg border border-white/10 shadow-lg"
+                              />
+                              <a 
+                                href={report.proofImageUrl} 
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                download
+                                className="bg-pak-teal/15 border border-pak-teal/40 text-pak-teal px-3 py-1.5 rounded-lg text-[10px] font-bold text-center hover:bg-pak-teal/25 transition-all flex items-center justify-center gap-1"
+                              >
+                                📥 Proof Download
+                              </a>
+                            </div>
+                          )}
+                          
+                          {currentUser && report.proofImageUrl === 'uploading' && (
+                            <div className="flex items-center gap-2 text-white/40 text-[10px] font-bold italic">
+                              <Loader2 size={12} className="animate-spin" />
+                              ⏳ Proof upload ho rahi hai...
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between">
                       <span className="text-white/40 font-medium">📅 {t('feed_loss_date')}</span>
                       <span className="text-white font-bold">{formatDate(report.lossDateTime)}</span>
@@ -235,9 +282,18 @@ const FeedPage: React.FC = () => {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-white/40 font-medium">👤 {t('feed_registered_by')}</span>
-                      <span className="text-white font-bold">
-                        {currentUser ? report.ownerName : maskText(report.ownerName)} — {report.city}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {currentUser && report.selfieImageUrl && report.selfieImageUrl !== 'uploading' && (
+                          <img 
+                            src={report.selfieImageUrl} 
+                            alt="Owner"
+                            className="w-[30px] h-[30px] rounded-full object-cover border border-pak-teal/50"
+                          />
+                        )}
+                        <span className="text-white font-bold">
+                          {currentUser ? report.ownerName : maskText(report.ownerName)} — {report.city}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -267,7 +323,7 @@ const FeedPage: React.FC = () => {
                         <Lock className="mx-auto text-pak-orange mb-3" size={24} />
                         <p className="text-white text-sm font-bold mb-4">{t('feed_login_prompt')}</p>
                         <button 
-                          onClick={() => login()}
+                          onClick={signInWithGoogle}
                           className="bg-white text-black px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
                         >
                           Unlock with Google

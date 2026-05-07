@@ -37,6 +37,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const result = await signInWithPopup(auth, provider);
       return result.user;
     } catch (error: any) {
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        console.log('Login popup closed/cancelled by user');
+        return;
+      }
       console.error('Login error:', error.code, error.message);
       toast.error('Login nahi hua. Dobara try karein.');
     }
