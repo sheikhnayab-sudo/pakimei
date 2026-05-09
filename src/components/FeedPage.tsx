@@ -335,18 +335,40 @@ const FeedPage: React.FC = () => {
 
                 {/* Owner Delete Option */}
                 {currentUser && currentUser.uid === report.userId && (
-                  <div className="absolute bottom-4 right-4 z-20">
+                  <div className="p-4" style={{ 
+                    borderTop: '1px solid rgba(255,255,255,0.1)', 
+                    paddingTop: '1rem', 
+                    marginTop: '1rem' 
+                  }}>
                     <button
                       onClick={() => setDeleteId(report.id)}
-                      className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg border transition-all"
                       style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
                         background: 'rgba(230, 57, 70, 0.15)',
-                        color: 'rgba(230, 57, 70, 0.8)',
-                        borderColor: 'rgba(230, 57, 70, 0.3)'
+                        border: '1.5px solid rgba(230, 57, 70, 0.5)',
+                        color: '#e63946',
+                        padding: '0.6rem 1.25rem',
+                        borderRadius: 10,
+                        cursor: 'pointer',
+                        fontFamily: "'Outfit', sans-serif",
+                        fontWeight: 600,
+                        fontSize: '0.9rem',
+                        width: '100%',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(230,57,70,0.3)';
+                        e.currentTarget.style.borderColor = '#e63946';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'rgba(230,57,70,0.15)';
+                        e.currentTarget.style.borderColor = 'rgba(230,57,70,0.5)';
                       }}
                     >
-                      <Trash2 size={12} />
-                      Delete
+                      🗑️ Apni Entry Delete Karein
                     </button>
                   </div>
                 )}
