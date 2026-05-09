@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import * as faceapi from 'face-api.js';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -21,15 +22,28 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [captured, setCaptured] = useState<string | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [faceDetected, setFaceDetected] = useState(false);
+  const [modelsLoaded, setModelsLoaded] = useState(false);
+
+  // Load face detection models on component mount
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        // Using external weights to ensure it works without manual file setup
+        const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
+        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+        setModelsLoaded(true);
+      } catch (err) {
+        console.error("Face-api models load error:", err);
+      }
+    };
+    loadModels();
+  }, []);
 
   const openCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: 'user',
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        } 
+        video: { facingMode: 'user' } 
       });
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
@@ -41,7 +55,42 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
     }
   };
 
-  const capturePhoto = () => {
+  // Continuous face detection loop
+  useEffect(() => {
+    let interval: any;
+    if (cameraOpen && modelsLoaded && videoRef.current) {
+      interval = setInterval(async () => {
+        if (videoRef.current) {
+          const detection = await faceapi.detectSingleFace(
+            videoRef.current,
+            new faceapi.TinyFaceDetectorOptions()
+          );
+          setFaceDetected(!!detection);
+        }
+      }, 500);
+    }
+    return () => clearInterval(interval);
+  }, [cameraOpen, modelsLoaded]);
+
+  const capturePhoto = async () => {
+    if (!modelsLoaded) {
+      toast.error('Face detection load ho rahi hai. Thoda wait karein.');
+      return;
+    }
+
+    if (!videoRef.current) return;
+
+    // Final face check before capture
+    const detection = await faceapi.detectSingleFace(
+      videoRef.current,
+      new faceapi.TinyFaceDetectorOptions()
+    );
+
+    if (!detection) {
+      toast.error('⚠️ Koi chehra nazar nahi aaya! Apna chehra camera k saamne rakhein.');
+      return;
+    }
+
     const canvas = canvasRef.current;
     const video = videoRef.current;
     if (!canvas || !video || !stream) return;
@@ -60,10 +109,10 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
         });
         setCaptured(URL.createObjectURL(blob));
         onCapture(file);
-        // Stop camera
         stream.getTracks().forEach(t => t.stop());
         setCameraOpen(false);
         setStream(null);
+        toast.success('✅ Tasveer kamyabi se li gayi!');
       }
     }, 'image/jpeg', 0.8);
   };
@@ -92,16 +141,29 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
       
       {cameraOpen && (
         <div className="space-y-4">
-          <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-black">
+          <div className={`relative overflow-hidden rounded-2xl border-4 transition-colors bg-black ${
+            faceDetected ? 'border-pak-teal' : 'border-pak-red'
+          }`}>
             <video ref={videoRef} autoPlay playsInline 
               className="w-full h-auto"
               style={{ maxHeight: 300 }}
             />
+            {/* Live status overlay */}
+            <div className={`absolute bottom-0 inset-x-0 p-3 text-center text-[10px] font-black uppercase tracking-widest backdrop-blur-md ${
+              faceDetected ? 'bg-pak-teal/20 text-pak-teal' : 'bg-pak-red/20 text-pak-red'
+            }`}>
+              {faceDetected 
+                ? '✅ Chehra detect ho gaya — Photo khainch sakte hain!' 
+                : '⚠️ Apna chehra camera k bilkul saamne rakhein...'}
+            </div>
           </div>
           <button 
             onClick={capturePhoto} 
             type="button"
-            className="w-full bg-pak-teal text-white font-black py-4 rounded-xl uppercase tracking-widest flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all"
+            disabled={!faceDetected}
+            className={`w-full bg-pak-teal text-white font-black py-4 rounded-xl uppercase tracking-widest flex items-center justify-center gap-3 transition-all ${
+              faceDetected ? 'hover:scale-[1.02] active:scale-95' : 'opacity-40 cursor-not-allowed'
+            }`}
           >
             <Camera size={20} /> Photo Khainchein
           </button>
@@ -372,7 +434,9 @@ const Register: React.FC = () => {
     }
 
     if (!selfieFile) {
-      toast.error('Apni live tasveer lena lazmi hai!');
+      toast.error('⚠️ Apni live tasveer lena lazmi hai!');
+      setLoading(false);
+      isSubmitting.current = false;
       return;
     }
 

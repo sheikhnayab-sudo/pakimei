@@ -49,15 +49,24 @@ const RestrictedResultCard: React.FC<{ result: any; onLogin: () => void }> = ({ 
             {result.proofType && (
               <div className="mt-4 pt-4 border-t border-white/10">
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 block mb-2">📎 Uploaded Proof:</span>
-                <span className={`inline-block px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${
-                  result.proofType === 'police_report' ? 'bg-pak-red/20 text-pak-red border-pak-red/30' :
-                  result.proofType === 'box_image' ? 'bg-pak-teal/20 text-pak-teal border-pak-teal/30' :
-                  'bg-white/10 text-white/50 border-white/20'
-                }`}>
-                  {result.proofType === 'police_report' && "🚨 Police FIR Copy"}
-                  {result.proofType === 'box_image' && "📦 Mobile Box Photo"}
-                  {result.proofType === 'purchase_slip' && "🧾 Purchase Slip"}
-                </span>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className={`inline-block px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${
+                    result.proofType === 'police_report' ? 'bg-pak-red/20 text-pak-red border-pak-red/30' :
+                    result.proofType === 'box_image' ? 'bg-pak-teal/20 text-pak-teal border-pak-teal/30' :
+                    'bg-pak-orange/20 text-pak-orange border-pak-orange/30'
+                  }`}>
+                    {result.proofType === 'police_report' && "🚨 Police FIR Copy"}
+                    {result.proofType === 'box_image' && "📦 Mobile Box Photo"}
+                    {result.proofType === 'purchase_slip' && "🧾 Purchase Slip"}
+                  </span>
+                  
+                  {result.proofImageUrl === 'uploading' && (
+                    <div className="flex items-center gap-2 text-white/30 text-[10px] font-bold italic">
+                      <Loader2 size={10} className="animate-spin" />
+                      ⏳ Proof upload ho rahi hai...
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Mail, MapPin, Clock, Copy, Send, MessageSquare, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Mail, MapPin, Clock, Copy, Send, MessageSquare, AlertTriangle, ShieldCheck, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const ContactPage: React.FC = () => {
@@ -14,18 +14,23 @@ const ContactPage: React.FC = () => {
   const contactReasons = [
     {
       title: "🚨 Fake Entry Report",
-      desc: "Agar aapko lagta hai ke koi entry ghalat ya fake hai, foran humein report karein takay hum use check kar sakein.",
+      desc: "EN: If you spot a fake or incorrect entry, report it immediately. | UR: Agar aapko koi fake entry nazar aaye toh foran report karein.",
       icon: <AlertTriangle className="text-pak-red" size={24} />
     },
     {
       title: "🛠 Technical Issue",
-      desc: "Website istemal karne mein koi masla aa raha hai? Screenshot ke saath humein email karein.",
+      desc: "EN: Facing problems with the website? Reach out for support. | UR: Website mein koi masla aa raha hai toh humein batayein.",
       icon: <MessageSquare className="text-pak-teal" size={24} />
     },
     {
-      title: "🤝 Partnership",
-      desc: "Agar aap mobile shop owner ya technician hain aur hamaray system ka hissa banna chahte hain.",
-      icon: <ShieldCheck className="text-pak-orange" size={24} />
+      title: "🗑 Entry Deletion",
+      desc: "EN: Want to remove your registered phone? Email us your request. | UR: Apni entry delete karwanay ke liye request bhejin.",
+      icon: <Trash2 className="text-pak-orange" size={24} />
+    },
+    {
+      title: "💡 Suggestion",
+      desc: "EN: Have an idea to improve PakIMEI? We'd love to hear it. | UR: PakIMEI ko behtar bananay ke liye koi tajweez dein.",
+      icon: <ShieldCheck className="text-white/50" size={24} />
     }
   ];
 
@@ -44,7 +49,7 @@ const ContactPage: React.FC = () => {
             </h1>
             <p className="text-xl text-white/60 max-w-2xl mx-auto font-medium">
               Koi masla? Fake entry report karni hai? <br />
-              <span className="text-pak-teal">Hum yahan hain!</span>
+              <span className="text-pak-teal font-black">Hum yahan hain!</span>
             </p>
           </motion.div>
         </div>
@@ -124,17 +129,14 @@ const ContactPage: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="text-white font-black text-xl mb-2 tracking-tight">{reason.title}</h3>
-                    <p className="text-white/50 text-sm leading-relaxed">{reason.desc}</p>
+                    <div className="space-y-1">
+                      <p className="text-white/50 text-xs font-bold leading-relaxed">{reason.desc.split('|')[0].trim()}</p>
+                      <p className="text-pak-teal/60 text-xs font-medium leading-relaxed italic">{reason.desc.split('|')[1]?.trim()}</p>
+                    </div>
                   </div>
                 </div>
               </div>
             ))}
-            
-            <div className="mt-4 p-6 rounded-3xl bg-pak-red/5 border border-pak-red/10">
-              <p className="text-pak-red/80 text-xs font-bold leading-relaxed">
-                * Note: Hum sirf tech aur registration masail mein madad kar sakte hain. Chori ki FIR ya legal action ke liye barah-e-karam apne ilaqa police station se ruju karein.
-              </p>
-            </div>
           </motion.div>
         </div>
       </div>

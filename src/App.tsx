@@ -12,6 +12,10 @@ import Search from './components/SearchPage';
 import HowItWorks from './components/HowItWorks';
 import FeedPage from './components/FeedPage';
 import ContactPage from './components/ContactPage';
+import AdminPage from './components/AdminPage';
+import PrivacyPolicy from './components/PrivacyPolicy';
+import TermsOfService from './components/TermsOfService';
+import AboutUs from './components/AboutUs';
 
 const App: React.FC = () => {
   useEffect(() => {
@@ -67,6 +71,10 @@ const App: React.FC = () => {
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/feed" element={<FeedPage />} />
               <Route path="/contact" element={<ContactPage />} />
+              <Route path="/admin" element={<AdminPage />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsOfService />} />
+              <Route path="/about" element={<AboutUs />} />
             </Routes>
           </main>
           

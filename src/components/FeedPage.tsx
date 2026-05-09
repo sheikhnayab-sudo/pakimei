@@ -201,7 +201,7 @@ const FeedPage: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: (idx % 20) * 0.05 }}
-                className="glass rounded-3xl border border-white/10 overflow-hidden flex flex-col relative"
+                className="glass rounded-3xl border border-white/10 overflow-hidden flex flex-col relative group"
               >
                 {/* Header/Badge */}
                 <div className={`p-4 flex justify-between items-center ${report.reportType === 'stolen' ? 'bg-pak-red/10' : 'bg-pak-teal/10'}`}>

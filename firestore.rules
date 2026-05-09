@@ -8,8 +8,12 @@ service cloud.firestore {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email == 'sheikhnayab@gmail.com';
+    }
+
     function isValidReport(data) {
-      let requiredKeys = ['ownerName', 'nicNumber', 'address', 'contactNumber', 'whatsappNumber', 'lossDateTime', 'lossLocation', 'imei', 'imei2', 'brand', 'model', 'color', 'reportType', 'description', 'status', 'createdAt', 'userId', 'userEmail', 'verified', 'hasPoliceReport', 'proofType', 'proofImageUrl', 'city'];
+      let requiredKeys = ['ownerName', 'nicNumber', 'address', 'contactNumber', 'whatsappNumber', 'lossDateTime', 'lossLocation', 'imei', 'imei2', 'brand', 'model', 'color', 'reportType', 'description', 'status', 'createdAt', 'userId', 'userEmail', 'verified', 'hasPoliceReport', 'proofType', 'proofImageUrl', 'selfieImageUrl', 'city'];
       return data.keys().hasAll(requiredKeys) &&
              data.keys().size() == requiredKeys.size() &&
              data.ownerName is string && data.ownerName.size() >= 3 && data.ownerName.size() <= 100 &&
@@ -30,13 +34,14 @@ service cloud.firestore {
              data.hasPoliceReport in ['yes', 'no'] &&
              data.proofType in ['police_report', 'box_image', 'purchase_slip'] &&
              data.proofImageUrl is string && (data.proofImageUrl == "" || data.proofImageUrl.size() <= 1024) &&
+             data.selfieImageUrl is string && (data.selfieImageUrl == "" || data.selfieImageUrl.size() <= 1024) &&
              data.status in ['pending', 'verified', 'flagged'] &&
              data.verified is bool &&
              data.userId is string && data.userId.size() <= 128 &&
              data.userEmail is string && data.userEmail.size() <= 200;
     }
 
-    // Explicitly allow reading reports for everyone to fix "Missing or insufficient permissions"
+    // Explicitly allow reading reports for everyone
     match /phones {
       allow read: if true;
       match /{reportId} {
@@ -50,7 +55,7 @@ service cloud.firestore {
                        request.resource.data.status == 'pending' &&
                        request.resource.data.createdAt == request.time;
                        
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow update, delete: if request.auth != null && (request.auth.uid == resource.data.userId || isAdmin());
     }
 
     match /{document=**} {
