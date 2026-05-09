@@ -18,54 +18,58 @@ import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
   const [captured, setCaptured] = useState<string | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const openCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user' },
+        video: true,
         audio: false
       });
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play().catch(console.error);
-        };
-      }
-      setStream(mediaStream);
+      streamRef.current = mediaStream;
       setCameraOpen(true);
+      
+      // Wait for video element to render first
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+          videoRef.current.play().catch(console.error);
+        }
+      }, 100);
+
     } catch (err: any) {
-      console.error(err);
-      toast.error('Camera nahi khula: ' + (err.message || 'Permission denied'));
+      toast.error('Camera nahi khula: ' + err.message);
     }
   };
 
   const capturePhoto = () => {
-    const canvas = canvasRef.current;
     const video = videoRef.current;
-    if (!canvas || !video || !stream) return;
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+    
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.drawImage(video, 0, 0);
     }
     
     canvas.toBlob((blob) => {
-      if (blob) {
-        const file = new File([blob], `selfie_${Date.now()}.jpg`, { 
-          type: 'image/jpeg' 
-        });
-        setCaptured(URL.createObjectURL(blob));
-        onCapture(file);
-        stream.getTracks().forEach(t => t.stop());
-        setCameraOpen(false);
-        setStream(null);
-        toast.success('✅ Tasveer kamyabi se li gayi!');
+      if (!blob) {
+        toast.error('Photo nahi li gayi. Dobara try karein.');
+        return;
       }
+      const file = new File(
+        [blob], 
+        `selfie_${Date.now()}.jpg`, 
+        { type: 'image/jpeg' }
+      );
+      setCaptured(URL.createObjectURL(blob));
+      onCapture(file);
+      streamRef.current?.getTracks().forEach(t => t.stop());
+      setCameraOpen(false);
     }, 'image/jpeg', 0.8);
   };
 
@@ -73,6 +77,13 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
     setCaptured(null);
     openCamera();
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      streamRef.current?.getTracks().forEach(t => t.stop());
+    };
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -90,19 +101,25 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
           </div>
         </button>
       )}
-      
+
       {cameraOpen && (
         <div className="space-y-4">
           <div className="relative overflow-hidden rounded-2xl border-4 border-pak-teal transition-colors bg-black">
             <video 
-              ref={videoRef} 
+              ref={videoRef}
               autoPlay 
               playsInline
               muted
               className="w-full h-auto"
-              style={{ maxHeight: 300, background: '#000' }}
+              style={{
+                width: '100%',
+                maxHeight: 300,
+                borderRadius: 12,
+                border: '3px solid #2ec4b6',
+                display: 'block',
+                background: '#111'
+              }}
             />
-            {/* Live status overlay */}
             <div className="absolute bottom-0 inset-x-0 p-3 text-center text-[10px] font-black uppercase tracking-widest backdrop-blur-md bg-pak-teal/20 text-pak-teal">
               ✅ Camera ON — Photo khainch sakte hain!
             </div>
@@ -116,11 +133,11 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
           </button>
         </div>
       )}
-      
+
       {captured && (
         <div className="flex flex-col items-center gap-4">
           <div className="relative border-4 border-pak-teal rounded-2xl overflow-hidden shadow-2xl">
-            <img src={captured} 
+            <img src={captured}
               alt="Selfie"
               className="w-full h-auto max-w-[250px]"
               style={{ objectFit: 'cover' }}
@@ -141,7 +158,7 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
           </button>
         </div>
       )}
-      
+
       <canvas ref={canvasRef} style={{ display: 'none' }} />
     </div>
   );
