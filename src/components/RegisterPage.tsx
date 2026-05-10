@@ -23,6 +23,7 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
   const [cameraOpen, setCameraOpen] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
   const [faceDetected, setFaceDetected] = useState(false);
+  const [eyesDetected, setEyesDetected] = useState(false);
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [modelsFailed, setModelsFailed] = useState(false);
   const detectionInterval = useRef<any>(null);
@@ -33,6 +34,7 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
       try {
         const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
         await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+        await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
         console.log('Face API models loaded successfully!');
         setModelsLoaded(true);
       } catch (err) {
@@ -52,12 +54,19 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
           const detection = await faceapi.detectSingleFace(
             videoRef.current,
             new faceapi.TinyFaceDetectorOptions({
-              inputSize: 224,
-              scoreThreshold: 0.5
+              inputSize: 320,
+              scoreThreshold: 0.3
             })
-          );
+          ).withFaceLandmarks(true);
           console.log('Detection result:', detection);
           setFaceDetected(!!detection);
+          if (detection && detection.landmarks) {
+            const leftEye = detection.landmarks.getLeftEye();
+            const rightEye = detection.landmarks.getRightEye();
+            setEyesDetected(leftEye.length > 0 && rightEye.length > 0);
+          } else {
+            setEyesDetected(false);
+          }
         } catch (e) {
           console.error('Face detection error:', e);
         }
@@ -101,8 +110,11 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
 
     const detection = await faceapi.detectSingleFace(
       video,
-      new faceapi.TinyFaceDetectorOptions()
-    );
+      new faceapi.TinyFaceDetectorOptions({
+        inputSize: 320,
+        scoreThreshold: 0.3
+      })
+    ).withFaceLandmarks(true);
     
     if (!detection) {
       toast.error('⚠️ Chehra nazar nahi aaya! Dobara try karein.');
@@ -113,6 +125,9 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
     canvas.height = video.videoHeight || 480;
     const ctx = canvas.getContext('2d');
     if (ctx) {
+      // Flip horizontally for correct orientation (matches mirrored preview)
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
       ctx.drawImage(video, 0, 0);
     }
     
@@ -168,7 +183,7 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
         <div className="space-y-4">
           <div className="relative overflow-hidden rounded-2xl border-4 transition-colors bg-black"
             style={{
-              borderColor: faceDetected ? '#2ec4b6' : '#e63946'
+              borderColor: eyesDetected ? '#2ec4b6' : faceDetected ? '#f4a261' : '#e63946'
             }}
           >
             <video 
@@ -182,7 +197,9 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
                 maxHeight: 300,
                 borderRadius: 12,
                 display: 'block',
-                background: '#111'
+                background: '#111',
+                transform: 'scaleX(-1)',
+                WebkitTransform: 'scaleX(-1)',
               }}
             />
 
@@ -223,15 +240,17 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
             </div>
 
             <div className={`absolute bottom-0 inset-x-0 p-3 text-center text-[10px] font-black uppercase tracking-widest backdrop-blur-md z-20 ${
-              faceDetected ? 'bg-pak-teal/20 text-pak-teal' : 'bg-pak-red/20 text-pak-red'
+              eyesDetected ? 'bg-pak-teal/20 text-pak-teal' : faceDetected ? 'bg-pak-orange/20 text-pak-orange' : 'bg-pak-red/20 text-pak-red'
             }`}>
               {modelsFailed 
                 ? '❌ Models load nahi ho sakay. Internet check karein.'
                 : !modelsLoaded 
                   ? '⏳ Face detection load ho rahi hai...'
-                  : faceDetected 
-                    ? '✅ Chehra detect ho gaya! Photo khainch sakte hain'
-                    : '⚠️ Apna chehra camera k saamne rakhein'
+                  : eyesDetected
+                    ? '✅ Perfect! Photo khainch sakte hain'
+                    : faceDetected 
+                      ? '👀 Dono aankhein camera ki taraf rakhein'
+                      : '⚠️ Apna chehra oval k andar rakhein'
               }
             </div>
           </div>
@@ -239,7 +258,7 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
           <div style={{
             textAlign: 'center',
             marginTop: 8,
-            color: faceDetected ? '#2ec4b6' : '#e63946',
+            color: eyesDetected ? '#2ec4b6' : faceDetected ? '#f4a261' : '#e63946',
             fontWeight: 600,
             fontSize: '0.85rem'
           }}>
@@ -247,9 +266,11 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
               ? '❌ Models load nahi ho sakay. Internet check karein.'
               : !modelsLoaded 
                 ? '⏳ Face detection load ho rahi hai...'
-                : faceDetected 
-                  ? '✅ Chehra detect ho gaya! Photo khainch sakte hain'
-                  : '⚠️ Apna chehra camera k saamne rakhein'
+                : eyesDetected
+                  ? '✅ Perfect! Photo khainch sakte hain'
+                  : faceDetected 
+                    ? '👀 Dono aankhein camera ki taraf rakhein'
+                    : '⚠️ Apna chehra oval k andar rakhein'
             }
           </div>
 
