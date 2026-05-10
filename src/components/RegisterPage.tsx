@@ -185,7 +185,44 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
                 background: '#111'
               }}
             />
-            <div className={`absolute bottom-0 inset-x-0 p-3 text-center text-[10px] font-black uppercase tracking-widest backdrop-blur-md ${
+
+            {/* Dark overlay with oval cutout */}
+            <div style={{
+              position: 'absolute',
+              top: 0, left: 0,
+              width: '100%', height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              pointerEvents: 'none',
+              zIndex: 10
+            }}>
+              <svg
+                width="100%"
+                height="100%"
+                style={{ position: 'absolute', top: 0, left: 0 }}
+              >
+                <defs>
+                  <mask id="face-guide-mask">
+                    <rect width="100%" height="100%" fill="white" />
+                    <ellipse cx="50%" cy="50%" rx="30%" ry="40%" fill="black" />
+                  </mask>
+                </defs>
+                <rect width="100%" height="100%" fill="rgba(0,0,0,0.4)" mask="url(#face-guide-mask)" />
+                <ellipse 
+                  cx="50%" 
+                  cy="50%" 
+                  rx="30%" 
+                  ry="40%" 
+                  fill="none" 
+                  stroke={faceDetected ? '#2ec4b6' : '#e63946'} 
+                  strokeWidth="3" 
+                  strokeDasharray="8,5" 
+                />
+              </svg>
+            </div>
+
+            <div className={`absolute bottom-0 inset-x-0 p-3 text-center text-[10px] font-black uppercase tracking-widest backdrop-blur-md z-20 ${
               faceDetected ? 'bg-pak-teal/20 text-pak-teal' : 'bg-pak-red/20 text-pak-red'
             }`}>
               {modelsFailed 
