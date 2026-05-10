@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import emailjs from '@emailjs/browser';
 import { LanguageProvider } from './context/LanguageContext';
@@ -6,16 +6,18 @@ import { AuthProvider } from './context/AuthContext';
 import { Toaster } from 'react-hot-toast';
 import Header from './components/Header';
 import Footer from './components/Footer';
-import Home from './components/HomePage';
-import Register from './components/RegisterPage';
-import Search from './components/SearchPage';
-import HowItWorks from './components/HowItWorks';
-import FeedPage from './components/FeedPage';
-import ContactPage from './components/ContactPage';
-import AdminPage from './components/AdminPage';
-import PrivacyPolicy from './components/PrivacyPolicy';
-import TermsOfService from './components/TermsOfService';
-import AboutUs from './components/AboutUs';
+
+// Lazy loading page components
+const HomePage = lazy(() => import('./components/HomePage'));
+const RegisterPage = lazy(() => import('./components/RegisterPage'));
+const SearchPage = lazy(() => import('./components/SearchPage'));
+const HowItWorks = lazy(() => import('./components/HowItWorks'));
+const FeedPage = lazy(() => import('./components/FeedPage'));
+const ContactPage = lazy(() => import('./components/ContactPage'));
+const AdminPage = lazy(() => import('./components/AdminPage'));
+const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
+const TermsOfService = lazy(() => import('./components/TermsOfService'));
+const AboutUs = lazy(() => import('./components/AboutUs'));
 
 const App: React.FC = () => {
   useEffect(() => {
@@ -26,6 +28,20 @@ const App: React.FC = () => {
       emailjs.init(publicKey);
     }
   }, []);
+
+  const LoadingFallback = () => (
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: '60vh',
+      color: 'rgba(255,255,255,0.5)',
+      fontSize: '1rem',
+      fontFamily: "'Outfit', sans-serif"
+    }}>
+      ⏳ Loading...
+    </div>
+  );
 
   return (
     <AuthProvider>
@@ -64,18 +80,20 @@ const App: React.FC = () => {
             />
           <Header />
           <main className="mx-auto max-w-7xl">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/search" element={<Search />} />
-              <Route path="/how-it-works" element={<HowItWorks />} />
-              <Route path="/feed" element={<FeedPage />} />
-              <Route path="/contact" element={<ContactPage />} />
-              <Route path="/admin" element={<AdminPage />} />
-              <Route path="/privacy" element={<PrivacyPolicy />} />
-              <Route path="/terms" element={<TermsOfService />} />
-              <Route path="/about" element={<AboutUs />} />
-            </Routes>
+            <Suspense fallback={<LoadingFallback />}>
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/search" element={<SearchPage />} />
+                <Route path="/how-it-works" element={<HowItWorks />} />
+                <Route path="/feed" element={<FeedPage />} />
+                <Route path="/contact" element={<ContactPage />} />
+                <Route path="/admin" element={<AdminPage />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/about" element={<AboutUs />} />
+              </Routes>
+            </Suspense>
           </main>
           
           <Footer />

@@ -6,8 +6,25 @@ import { Search as SearchIcon, AlertTriangle, CheckCircle2, ShieldAlert, Smartph
 import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
 import { db } from '../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
+import { AnimatePresence } from 'motion/react';
+
+const shareOnWhatsApp = (entry: any) => {
+  const message = 
+    `🚨 *Chori Shuda Phone Alert — PakIMEI*\n\n` +
+    `📱 Phone: ${entry.brand} ${entry.model || 'Hidden'}\n` +
+    `🔢 IMEI: ${entry.imei}\n` +
+    `📍 City: ${entry.city || 'N/A'}\n` +
+    `📅 Tarikh: ${entry.lossDateTime || 'N/A'}\n\n` +
+    `Agar ye phone unlock hone aaye to ` +
+    `owner se rabta karein.\n\n` +
+    `🔍 IMEI Check karein:\n` +
+    `https://${window.location.hostname}`;
+
+  const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+  window.open(url, '_blank');
+};
 
 const RestrictedResultCard: React.FC<{ result: any; onLogin: () => void }> = ({ result, onLogin }) => {
   const { t } = useLanguage();
@@ -85,6 +102,15 @@ const RestrictedResultCard: React.FC<{ result: any; onLogin: () => void }> = ({ 
           </div>
         </div>
 
+        <div className="mt-6">
+          <button
+            onClick={() => shareOnWhatsApp(result)}
+            className="w-full flex items-center justify-center gap-3 bg-[#25D366]/20 text-[#25D366] py-5 rounded-2xl font-black uppercase tracking-widest text-sm border border-[#25D366]/30 hover:bg-[#25D366]/30 transition-all shadow-xl"
+          >
+            💬 WhatsApp Pe Alert Share Karein
+          </button>
+        </div>
+
         {/* Login Prompt Overlay */}
         <div className="mt-8 relative z-20">
           <div className="glass rounded-3xl border border-white/20 p-8 text-center shadow-2xl relative overflow-hidden bg-black/40 backdrop-blur-md">
@@ -126,6 +152,8 @@ const Search: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [searched, setSearched] = useState(false);
+  const [reportFakeId, setReportFakeId] = useState<string | null>(null);
+  const [reportingFake, setReportingFake] = useState(false);
 
   useEffect(() => {
     if (queryParam) {
@@ -144,12 +172,13 @@ const Search: React.FC = () => {
       const querySnapshot = await getDocs(q);
       
       if (!querySnapshot.empty) {
-        const data = querySnapshot.docs[0].data();
+        const doc = querySnapshot.docs[0];
+        const data = doc.data();
         // Hide flagged entries from public search
         if (data.status === 'flagged') {
           setResult(null);
         } else {
-          setResult(data);
+          setResult({ ...data, id: doc.id });
         }
       } else {
         setResult(null);
@@ -162,6 +191,28 @@ const Search: React.FC = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReportSubmit = async () => {
+    if (!reportFakeId || !currentUser) return;
+
+    try {
+      setReportingFake(true);
+      await addDoc(collection(db, 'reports'), {
+        phoneId: reportFakeId,
+        reporterId: currentUser.uid,
+        reporterEmail: currentUser.email,
+        createdAt: serverTimestamp(),
+        reason: 'User flagged as fake/suspicious (Search Result)'
+      });
+      toast.success('Shukriya! Humari team is entry ko jald check karegi. 🚩');
+      setReportFakeId(null);
+    } catch (err) {
+      console.error("Report Error:", err);
+      toast.error('Report send nahi ho saki. Internet check karein.');
+    } finally {
+      setReportingFake(false);
     }
   };
 
@@ -201,6 +252,55 @@ const Search: React.FC = () => {
         animate={{ opacity: 1, scale: 1 }}
         className="min-h-[400px]"
       >
+        <AnimatePresence>
+          {reportFakeId && (
+            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setReportFakeId(null)}
+                className="absolute inset-0 bg-navy-950/80 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative w-full max-w-sm glass p-8 text-center z-10"
+              >
+                <div className="mb-6 flex justify-center">
+                  <div className="rounded-full bg-pak-orange/10 p-5 text-pak-orange border border-pak-orange/20">
+                    <AlertTriangle size={40} />
+                  </div>
+                </div>
+                
+                <h3 className="text-2xl font-bold text-white mb-2 tracking-tight">🚩 Report Fake Entry?</h3>
+                <p className="text-white/60 mb-8 leading-relaxed">
+                  Kya aap ko lagta hai ke yeh entry galat ya fake hai? Humari admin team isay check karegi.
+                </p>
+
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={handleReportSubmit}
+                    disabled={reportingFake}
+                    className="w-full bg-pak-orange text-white py-4 rounded-xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 hover:bg-pak-orange/80 transition-colors"
+                  >
+                    {reportingFake ? <Loader2 className="animate-spin" size={18} /> : null}
+                    Haan, Report Karein
+                  </button>
+                  <button
+                    onClick={() => setReportFakeId(null)}
+                    disabled={reportingFake}
+                    className="w-full py-4 rounded-xl font-bold uppercase tracking-widest text-sm text-white/40 hover:text-white transition-colors"
+                  >
+                    Nahi, Wapas Jao
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
         {loading ? (
           <div className="space-y-6">
             <div className="h-64 w-full animate-pulse rounded-3xl glass" />
@@ -256,8 +356,9 @@ const Search: React.FC = () => {
                     {result.selfieImageUrl && result.selfieImageUrl !== 'uploading' && (
                       <div className="mt-5 pt-5 border-t border-white/10 flex items-center gap-4">
                         <img 
-                          src={result.selfieImageUrl} 
+                          src={result.selfieImageUrl + '?w=100&q=auto&f=auto'} 
                           alt="Owner Selfie"
+                          loading="lazy"
                           className="w-16 h-16 rounded-full object-cover border-4 border-pak-teal shadow-xl"
                         />
                         <div>
@@ -284,8 +385,9 @@ const Search: React.FC = () => {
                           {result.proofImageUrl && result.proofImageUrl !== 'uploading' && (
                             <div className="flex flex-col gap-3">
                               <img 
-                                src={result.proofImageUrl} 
+                                src={result.proofImageUrl + '?w=400&q=auto&f=auto'} 
                                 alt="Proof"
+                                loading="lazy"
                                 style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 12 }}
                                 className="border border-white/10 shadow-xl"
                               />
@@ -346,10 +448,22 @@ const Search: React.FC = () => {
                   >
                     Contact via WhatsApp
                   </a>
-                  <div className="flex-1 flex items-center justify-center gap-3 glass text-white py-4 rounded-2xl font-black uppercase tracking-widest text-sm">
-                    Owner: {result.ownerName}
-                  </div>
+                  <button
+                    onClick={() => shareOnWhatsApp(result)}
+                    className="flex-1 flex items-center justify-center gap-3 glass text-[#25D366] py-4 rounded-2xl font-black uppercase tracking-widest text-sm border border-[#25D366]/30 hover:bg-[#25D366]/10 transition-all"
+                  >
+                    💬 WhatsApp Share
+                  </button>
                 </div>
+
+                {currentUser && currentUser.uid !== result.userId && (
+                  <button
+                    onClick={() => setReportFakeId(result.id)}
+                    className="mt-4 w-full flex items-center justify-center gap-2 bg-pak-orange/20 text-pak-orange py-4 rounded-2xl font-black uppercase tracking-widest text-sm border border-pak-orange/30 hover:bg-pak-orange/30 transition-all"
+                  >
+                    🚩 Report Fake Entry
+                  </button>
+                )}
 
                 <div className="mt-8 rounded-2xl bg-white/5 p-8 text-base leading-relaxed text-white/70 border border-white/10 backdrop-blur-md">
                   <div className="flex items-start gap-4">

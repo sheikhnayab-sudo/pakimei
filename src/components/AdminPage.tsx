@@ -309,7 +309,12 @@ const Thumbnail = ({ label, src, circular }: any) => {
           </div>
         ) : (
           <a href={src} target="_blank" rel="noreferrer">
-            <img src={src} alt={label} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+            <img 
+              src={src + (circular ? '?w=100&q=auto&f=auto' : '?w=400&q=auto&f=auto')} 
+              alt={label} 
+              loading="lazy"
+              className="w-full h-full object-cover transition-transform group-hover:scale-110" 
+            />
           </a>
         )}
       </div>

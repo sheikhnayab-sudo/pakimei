@@ -35,12 +35,33 @@
         "userEmail": { "type": "string" }
       },
       "required": ["ownerName", "nicNumber", "address", "contactNumber", "whatsappNumber", "lossDateTime", "lossLocation", "imei", "brand", "model", "color", "reportType", "status", "createdAt", "userId", "userEmail", "hasPoliceReport", "proofType", "proofImageUrl"]
+    },
+    "fakeReport": {
+      "title": "Fake Entry Report",
+      "description": "User report flagging a phone entry as fake or suspicious.",
+      "type": "object",
+      "properties": {
+        "phoneId": { "type": "string", "description": "ID of the phone entry being flagged." },
+        "reporterId": { "type": "string", "description": "UID of the user reporting." },
+        "reporterEmail": { "type": "string" },
+        "reason": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["phoneId", "reporterId", "reporterEmail", "createdAt"]
     }
   },
   "firestore": {
     "phones": {
       "schema": "report",
       "description": "Central registry of stolen/lost mobile devices in Pakistan."
+    },
+    "reports": {
+      "schema": "fakeReport",
+      "description": "User-submitted flags for suspicious entries."
+    },
+    "flagged": {
+      "schema": "report",
+      "description": "Entries that have been hidden from public due to suspicion."
     }
   }
 }
