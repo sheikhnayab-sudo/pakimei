@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import * as faceapi from 'face-api.js';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -21,6 +22,47 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
   const [captured, setCaptured] = useState<string | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
+  const [faceDetected, setFaceDetected] = useState(false);
+  const [modelsLoaded, setModelsLoaded] = useState(false);
+  const detectionInterval = useRef<any>(null);
+
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
+        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+        setModelsLoaded(true);
+      } catch (err) {
+        console.error('Models load error:', err);
+      }
+    };
+    loadModels();
+  }, []);
+
+  const startDetection = () => {
+    detectionInterval.current = setInterval(async () => {
+      if (videoRef.current && modelsLoaded) {
+        try {
+          const detection = await faceapi.detectSingleFace(
+            videoRef.current,
+            new faceapi.TinyFaceDetectorOptions({
+              inputSize: 224,
+              scoreThreshold: 0.5
+            })
+          );
+          setFaceDetected(!!detection);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }, 500);
+  };
+
+  const stopDetection = () => {
+    if (detectionInterval.current) {
+      clearInterval(detectionInterval.current);
+    }
+  };
 
   const openCamera = async () => {
     try {
@@ -36,6 +78,7 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
           videoRef.current.play().catch(console.error);
+          setTimeout(startDetection, 1000);
         }
       }, 100);
 
@@ -44,10 +87,20 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
     }
   };
 
-  const capturePhoto = () => {
+  const capturePhoto = async () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
+
+    const detection = await faceapi.detectSingleFace(
+      video,
+      new faceapi.TinyFaceDetectorOptions()
+    );
+    
+    if (!detection) {
+      toast.error('⚠️ Chehra nazar nahi aaya! Dobara try karein.');
+      return;
+    }
     
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
@@ -69,6 +122,7 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
       setCaptured(URL.createObjectURL(blob));
       onCapture(file);
       streamRef.current?.getTracks().forEach(t => t.stop());
+      stopDetection();
       setCameraOpen(false);
     }, 'image/jpeg', 0.8);
   };
@@ -81,6 +135,7 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      stopDetection();
       streamRef.current?.getTracks().forEach(t => t.stop());
     };
   }, []);
@@ -104,7 +159,11 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
 
       {cameraOpen && (
         <div className="space-y-4">
-          <div className="relative overflow-hidden rounded-2xl border-4 border-pak-teal transition-colors bg-black">
+          <div className="relative overflow-hidden rounded-2xl border-4 transition-colors bg-black"
+            style={{
+              borderColor: faceDetected ? '#2ec4b6' : '#e63946'
+            }}
+          >
             <video 
               ref={videoRef}
               autoPlay 
@@ -115,21 +174,49 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
                 width: '100%',
                 maxHeight: 300,
                 borderRadius: 12,
-                border: '3px solid #2ec4b6',
                 display: 'block',
                 background: '#111'
               }}
             />
-            <div className="absolute bottom-0 inset-x-0 p-3 text-center text-[10px] font-black uppercase tracking-widest backdrop-blur-md bg-pak-teal/20 text-pak-teal">
-              ✅ Camera ON — Photo khainch sakte hain!
+            <div className={`absolute bottom-0 inset-x-0 p-3 text-center text-[10px] font-black uppercase tracking-widest backdrop-blur-md ${
+              faceDetected ? 'bg-pak-teal/20 text-pak-teal' : 'bg-pak-red/20 text-pak-red'
+            }`}>
+              {!modelsLoaded 
+                ? '⏳ Face detection load ho rahi hai...'
+                : faceDetected 
+                  ? '✅ Chehra detect ho gaya! Photo khainch sakte hain'
+                  : '⚠️ Apna chehra camera k saamne rakhein'
+              }
             </div>
           </div>
+
+          <div style={{
+            textAlign: 'center',
+            marginTop: 8,
+            color: faceDetected ? '#2ec4b6' : '#e63946',
+            fontWeight: 600,
+            fontSize: '0.85rem'
+          }}>
+            {!modelsLoaded 
+              ? '⏳ Face detection load ho rahi hai...'
+              : faceDetected 
+                ? '✅ Chehra detect ho gaya! Photo khainch sakte hain'
+                : '⚠️ Apna chehra camera k saamne rakhein'
+            }
+          </div>
+
           <button 
             onClick={capturePhoto} 
             type="button"
-            className="w-full bg-pak-teal text-white font-black py-4 rounded-xl uppercase tracking-widest flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-95"
+            disabled={!faceDetected}
+            className="w-full bg-pak-teal text-white font-black py-4 rounded-xl uppercase tracking-widest flex items-center justify-center gap-3 transition-all"
+            style={{
+              opacity: faceDetected ? 1 : 0.5,
+              cursor: faceDetected ? 'pointer' : 'not-allowed',
+              marginTop: '1rem'
+            }}
           >
-            <Camera size={20} /> Photo Khainchein
+            <Camera size={20} /> 📸 Photo Khainchein
           </button>
         </div>
       )}
