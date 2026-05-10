@@ -24,25 +24,31 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
   const streamRef = useRef<MediaStream | null>(null);
   const [faceDetected, setFaceDetected] = useState(false);
   const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [modelsFailed, setModelsFailed] = useState(false);
   const detectionInterval = useRef<any>(null);
 
   useEffect(() => {
     const loadModels = async () => {
+      console.log('Face API models loading from CDN...');
       try {
         const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
         await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+        console.log('Face API models loaded successfully!');
         setModelsLoaded(true);
       } catch (err) {
-        console.error('Models load error:', err);
+        console.error('Face API load error:', err);
+        setModelsFailed(true);
       }
     };
     loadModels();
   }, []);
 
   const startDetection = () => {
+    console.log('Starting face detection interval...');
     detectionInterval.current = setInterval(async () => {
       if (videoRef.current && modelsLoaded) {
         try {
+          console.log('Checking for face...');
           const detection = await faceapi.detectSingleFace(
             videoRef.current,
             new faceapi.TinyFaceDetectorOptions({
@@ -50,9 +56,10 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
               scoreThreshold: 0.5
             })
           );
+          console.log('Detection result:', detection);
           setFaceDetected(!!detection);
         } catch (e) {
-          console.error(e);
+          console.error('Face detection error:', e);
         }
       }
     }, 500);
@@ -181,11 +188,13 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
             <div className={`absolute bottom-0 inset-x-0 p-3 text-center text-[10px] font-black uppercase tracking-widest backdrop-blur-md ${
               faceDetected ? 'bg-pak-teal/20 text-pak-teal' : 'bg-pak-red/20 text-pak-red'
             }`}>
-              {!modelsLoaded 
-                ? '⏳ Face detection load ho rahi hai...'
-                : faceDetected 
-                  ? '✅ Chehra detect ho gaya! Photo khainch sakte hain'
-                  : '⚠️ Apna chehra camera k saamne rakhein'
+              {modelsFailed 
+                ? '❌ Models load nahi ho sakay. Internet check karein.'
+                : !modelsLoaded 
+                  ? '⏳ Face detection load ho rahi hai...'
+                  : faceDetected 
+                    ? '✅ Chehra detect ho gaya! Photo khainch sakte hain'
+                    : '⚠️ Apna chehra camera k saamne rakhein'
               }
             </div>
           </div>
@@ -197,11 +206,13 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
             fontWeight: 600,
             fontSize: '0.85rem'
           }}>
-            {!modelsLoaded 
-              ? '⏳ Face detection load ho rahi hai...'
-              : faceDetected 
-                ? '✅ Chehra detect ho gaya! Photo khainch sakte hain'
-                : '⚠️ Apna chehra camera k saamne rakhein'
+            {modelsFailed 
+              ? '❌ Models load nahi ho sakay. Internet check karein.'
+              : !modelsLoaded 
+                ? '⏳ Face detection load ho rahi hai...'
+                : faceDetected 
+                  ? '✅ Chehra detect ho gaya! Photo khainch sakte hain'
+                  : '⚠️ Apna chehra camera k saamne rakhein'
             }
           </div>
 
