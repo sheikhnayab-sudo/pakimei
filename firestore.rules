@@ -68,30 +68,18 @@ service cloud.firestore {
 
     // PHONE REGISTRY COLLECTION
     match /phones/{reportId} {
-      // Anyone can search and read reports
       allow read: if true;
-      
-      // Only authenticated users can create a report for themselves
-      allow create: if isSignedIn() && 
-                       isValidId(reportId) &&
-                       isValidReport(incoming()) &&
-                       incoming().userId == request.auth.uid &&
-                       incoming().status == 'pending' &&
-                       incoming().verified == false &&
-                       incoming().createdAt == request.time;
-                       
-      // Owners can update their reports (protecting immutable fields)
-      // Admins can update status and verification
-      allow update: if isSignedIn() && (
-        isAdmin() || 
-        (isOwner(existing().userId) && 
-         incoming().userId == existing().userId &&
-         incoming().imei == existing().imei &&
-         incoming().createdAt == existing().createdAt)
-      );
-
-      // Owners and Admins can delete
+      allow create: if isSignedIn() && isValidId(reportId) && isValidReport(incoming()) && incoming().userId == request.auth.uid && incoming().status == 'pending' && incoming().verified == false && incoming().createdAt == request.time;
+      allow update: if isSignedIn() && (isAdmin() || (isOwner(existing().userId) && incoming().userId == existing().userId && incoming().imei == existing().imei && incoming().createdAt == existing().createdAt));
       allow delete: if isAdmin() || isOwner(existing().userId);
+    }
+
+    // TRASH SYSTEM
+    match /trash/{docId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     // SUPPORTING COLLECTIONS (Requested by User)

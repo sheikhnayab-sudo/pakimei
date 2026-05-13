@@ -9,7 +9,10 @@ import {
   updateDoc, 
   deleteDoc, 
   orderBy,
-  Timestamp 
+  Timestamp,
+  setDoc,
+  serverTimestamp,
+  getDoc
 } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -33,7 +36,12 @@ import {
   User,
   Clock,
   ShieldCheck,
-  FileText
+  FileText,
+  RotateCcw,
+  Edit,
+  X,
+  Save,
+  Trash
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatWhatsAppNumber } from '../constants';
@@ -41,9 +49,11 @@ import { formatWhatsAppNumber } from '../constants';
 const AdminPage: React.FC = () => {
   const { currentUser } = useAuth();
   const [entries, setEntries] = useState<any[]>([]);
+  const [trashEntries, setTrashEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<'all' | 'verified' | 'flagged' | 'pending'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'verified' | 'flagged' | 'pending' | 'trash'>('all');
+  const [editingEntry, setEditingEntry] = useState<any | null>(null);
 
   useEffect(() => {
     if (currentUser?.email !== 'sheikhnayab@gmail.com') {
@@ -58,15 +68,28 @@ const AdminPage: React.FC = () => {
         ...doc.data()
       }));
       setEntries(data);
-      setLoading(false);
+      if (activeTab !== 'trash') setLoading(false);
     }, (error) => {
       console.error("Admin data fetch error:", error);
       toast.error("Failed to load admin data.");
       setLoading(false);
     });
 
-    return () => unsubscribe();
-  }, [currentUser]);
+    const trashQ = query(collection(db, 'trash'), orderBy('deletedAt', 'desc'));
+    const unsubscribeTrash = onSnapshot(trashQ, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setTrashEntries(data);
+      if (activeTab === 'trash') setLoading(false);
+    });
+
+    return () => {
+      unsubscribe();
+      unsubscribeTrash();
+    };
+  }, [currentUser, activeTab]);
 
   if (!currentUser || currentUser.email !== 'sheikhnayab@gmail.com') {
     return (
@@ -94,14 +117,68 @@ const AdminPage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('🚨 PERMANENT DELETE: Are you sure? This cannot be undone.')) return;
+  const moveToTrash = async (entry: any) => {
+    if (!window.confirm('🚩 MOVE TO TRASH: Are you sure? You can restore it later.')) return;
+    const t = toast.loading("Moving to trash...");
     try {
-      await deleteDoc(doc(db, 'phones', id));
-      toast.success('Entry deleted permanently 🗑️');
+      const trashDoc = {
+        ...entry,
+        deletedAt: serverTimestamp(),
+        deletedBy: currentUser.email,
+        originalStatus: entry.status
+      };
+      
+      await setDoc(doc(db, 'trash', entry.id), trashDoc);
+      await deleteDoc(doc(db, 'phones', entry.id));
+      
+      toast.success('Entry moved to trash 🗑️', { id: t });
     } catch (err) {
-      console.error("Delete error:", err);
-      toast.error('Deletion failed.');
+      console.error("Trash error:", err);
+      toast.error('Failed to move to trash.', { id: t });
+    }
+  };
+
+  const restoreFromTrash = async (entry: any) => {
+    const t = toast.loading("Restoring entry...");
+    try {
+      const { deletedAt, deletedBy, originalStatus, ...rest } = entry;
+      const restoredData = {
+        ...rest,
+        updatedAt: serverTimestamp()
+      };
+      
+      await setDoc(doc(db, 'phones', entry.id), restoredData);
+      await deleteDoc(doc(db, 'trash', entry.id));
+      
+      toast.success('Entry restored successfully ✅', { id: t });
+    } catch (err) {
+      console.error("Restore error:", err);
+      toast.error('Failed to restore entry.', { id: t });
+    }
+  };
+
+  const permanentDelete = async (id: string) => {
+    if (!window.confirm('🚨 PERMANENT DELETE: This cannot be undone! Are you sure?')) return;
+    const t = toast.loading("Deleting permanently...");
+    try {
+      await deleteDoc(doc(db, 'trash', id));
+      toast.success('Deleted permanently 💀', { id: t });
+    } catch (err) {
+      console.error("Permanent delete error:", err);
+      toast.error('Failed to delete permanently.', { id: t });
+    }
+  };
+
+  const handleEditSave = async (updatedData: any) => {
+    const t = toast.loading("Saving changes...");
+    try {
+      const { id, ...data } = updatedData;
+      await updateDoc(doc(db, 'phones', id), data);
+      toast.success('Entry updated successfully 💾', { id: t });
+      setEditingEntry(null);
+    } catch (err) {
+      console.error("Edit error:", err);
+      toast.error('Failed to save changes.', { id: t });
     }
   };
 
@@ -110,9 +187,12 @@ const AdminPage: React.FC = () => {
     pending: entries.filter(e => e.status === 'pending').length,
     verified: entries.filter(e => e.status === 'verified').length,
     flagged: entries.filter(e => e.status === 'flagged').length,
+    trash: trashEntries.length
   };
 
-  const filteredEntries = entries.filter(entry => {
+  const currentEntries = activeTab === 'trash' ? trashEntries : entries;
+
+  const filteredEntries = currentEntries.filter(entry => {
     const searchString = searchTerm.toLowerCase();
     const matchSearch = 
       (entry.imei || '').toLowerCase().includes(searchString) ||
@@ -121,14 +201,14 @@ const AdminPage: React.FC = () => {
       (entry.nicNumber || '').toLowerCase().includes(searchString) ||
       (entry.brand + ' ' + (entry.model || '')).toLowerCase().includes(searchString);
     
-    const matchTab = activeTab === 'all' || entry.status === activeTab;
+    const matchTab = activeTab === 'all' || activeTab === 'trash' || entry.status === activeTab;
     return matchSearch && matchTab;
   });
 
   const formatDate = (date: any) => {
     if (!date) return 'N/A';
     const d = date?.toDate ? date.toDate() : new Date(date);
-    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
   return (
@@ -149,7 +229,7 @@ const AdminPage: React.FC = () => {
               <span className="text-pak-teal font-black uppercase tracking-[0.3em] text-xs">Admin Control Center</span>
             </motion.div>
             <h1 className="font-display text-5xl sm:text-6xl font-black text-white tracking-tighter">
-              Manage <span className="text-pak-teal">Registry</span>
+              Manage <span className="text-pak-teal">{activeTab === 'trash' ? 'Trash' : 'Registry'}</span>
             </h1>
           </div>
           
@@ -166,16 +246,17 @@ const AdminPage: React.FC = () => {
         </div>
 
         {/* STATS GRID */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard title="Total Reports" value={stats.total} icon={<LayoutGrid />} color="text-white" bg="bg-white/5" delay={0} />
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <StatCard title="Total" value={stats.total} icon={<LayoutGrid />} color="text-white" bg="bg-white/5" delay={0} />
           <StatCard title="Pending" value={stats.pending} icon={<Clock />} color="text-pak-orange" bg="bg-pak-orange/10" delay={0.1} />
           <StatCard title="Verified" value={stats.verified} icon={<CheckCircle2 />} color="text-pak-teal" bg="bg-pak-teal/10" delay={0.2} />
           <StatCard title="Flagged" value={stats.flagged} icon={<AlertTriangle />} color="text-pak-red" bg="bg-pak-red/10" delay={0.3} />
+          <StatCard title="Trash" value={stats.trash} icon={<Trash2 />} color="text-white/30" bg="bg-white/5" delay={0.4} />
         </div>
 
         {/* TABS CONTROLS */}
         <div className="flex gap-3 overflow-x-auto pb-4 sticky top-24 z-20 scrollbar-hide py-2 backdrop-blur-md bg-black/50 mx-[-1rem] px-4">
-          {(['all', 'pending', 'verified', 'flagged'] as const).map((tab) => (
+          {(['all', 'pending', 'verified', 'flagged', 'trash'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -188,9 +269,10 @@ const AdminPage: React.FC = () => {
               <div className={`w-2 h-2 rounded-full ${
                 tab === 'verified' ? 'bg-pak-teal' : 
                 tab === 'flagged' ? 'bg-pak-red' : 
-                tab === 'pending' ? 'bg-pak-orange' : 'bg-white/40'
+                tab === 'pending' ? 'bg-pak-orange' : 
+                tab === 'trash' ? 'bg-white' : 'bg-white/40'
               }`} />
-              {tab} ({stats[tab as keyof typeof stats] ?? stats.total})
+              {tab} ({stats[tab]})
             </button>
           ))}
         </div>
@@ -213,18 +295,147 @@ const AdminPage: React.FC = () => {
                 entry={entry} 
                 idx={idx} 
                 onStatusUpdate={handleStatusUpdate}
-                onDelete={handleDelete}
+                onDelete={() => moveToTrash(entry)}
+                onRestore={() => restoreFromTrash(entry)}
+                onPermanentDelete={() => permanentDelete(entry.id)}
+                onEdit={() => setEditingEntry(entry)}
                 formatDate={formatDate}
+                isTrash={activeTab === 'trash'}
               />
             ))
           )}
         </div>
       </div>
+
+      {/* EDIT MODAL */}
+      <AnimatePresence>
+        {editingEntry && (
+          <EditModal 
+            entry={editingEntry} 
+            onClose={() => setEditingEntry(null)} 
+            onSave={handleEditSave} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
 
-const AdminEntryCard = ({ entry, idx, onStatusUpdate, onDelete, formatDate }: any) => {
+const EditModal = ({ entry, onClose, onSave }: any) => {
+  const [formData, setFormData] = useState({ ...entry });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/90 backdrop-blur-sm" 
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        className="glass rounded-[2rem] w-full max-w-2xl border border-white/10 relative z-10 overflow-hidden shadow-2xl"
+      >
+        <div className="p-6 border-b border-white/10 flex items-center justify-between">
+          <h2 className="text-xl font-black text-white uppercase tracking-widest flex items-center gap-3">
+            <Edit className="text-pak-teal" /> Edit Registry Entry
+          </h2>
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-all text-white/50 hover:text-white">
+            <X size={24} />
+          </button>
+        </div>
+        
+        <div className="p-8 max-h-[70vh] overflow-y-auto space-y-6">
+          <div className="grid grid-cols-2 gap-6">
+            <InputGroup label="Owner Name" name="ownerName" value={formData.ownerName} onChange={handleChange} />
+            <InputGroup label="CNIC Number" name="nicNumber" value={formData.nicNumber} onChange={handleChange} />
+            <InputGroup label="Contact Number" name="contactNumber" value={formData.contactNumber} onChange={handleChange} />
+            <InputGroup label="WhatsApp Number" name="whatsappNumber" value={formData.whatsappNumber} onChange={handleChange} />
+            <InputGroup label="Brand" name="brand" value={formData.brand} onChange={handleChange} />
+            <InputGroup label="Model" name="model" value={formData.model} onChange={handleChange} />
+            <InputGroup label="IMEI Number" name="imei" value={formData.imei} onChange={handleChange} />
+            <InputGroup label="Color" name="color" value={formData.color} onChange={handleChange} />
+            <InputGroup label="City" name="city" value={formData.city} onChange={handleChange} />
+            <InputGroup label="Loss Location" name="lossLocation" value={formData.lossLocation} onChange={handleChange} />
+            <div>
+              <label className="text-[10px] font-black uppercase text-white/40 tracking-widest mb-1.5 block">Report Type</label>
+              <select 
+                name="reportType" 
+                value={formData.reportType} 
+                onChange={handleChange}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-pak-teal outline-none transition-all"
+              >
+                <option value="stolen">Stolen</option>
+                <option value="lost">Lost</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-black uppercase text-white/40 tracking-widest mb-1.5 block">Status</label>
+              <select 
+                name="status" 
+                value={formData.status} 
+                onChange={handleChange}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-pak-teal outline-none transition-all"
+              >
+                <option value="pending">Pending</option>
+                <option value="verified">Verified</option>
+                <option value="flagged">Flagged</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] font-black uppercase text-white/40 tracking-widest mb-1.5 block">Description</label>
+            <textarea 
+              name="description" 
+              value={formData.description} 
+              onChange={handleChange}
+              rows={4}
+              className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] px-5 py-4 text-sm text-white focus:border-pak-teal outline-none transition-all resize-none"
+            />
+          </div>
+        </div>
+
+        <div className="p-8 bg-black/40 border-t border-white/5 flex gap-4">
+          <button 
+            onClick={() => onSave(formData)}
+            className="flex-1 bg-pak-teal text-navy-900 py-4 rounded-2xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-pak-teal/20"
+          >
+            <Save size={20} /> Save Changes
+          </button>
+          <button 
+            onClick={onClose}
+            className="px-8 py-4 rounded-2xl border border-white/10 text-white font-black uppercase tracking-widest text-sm hover:bg-white/5 transition-all"
+          >
+            Cancel
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+const InputGroup = ({ label, name, value, onChange }: any) => (
+  <div>
+    <label className="text-[10px] font-black uppercase text-white/40 tracking-widest mb-1.5 block">{label}</label>
+    <input 
+      type="text" 
+      name={name} 
+      value={value} 
+      onChange={onChange}
+      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:border-pak-teal outline-none transition-all"
+    />
+  </div>
+);
+
+const AdminEntryCard = ({ entry, idx, onStatusUpdate, onDelete, onRestore, onPermanentDelete, onEdit, formatDate, isTrash }: any) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -250,81 +461,87 @@ const AdminEntryCard = ({ entry, idx, onStatusUpdate, onDelete, formatDate }: an
           <span className="text-white/30 text-[10px] font-black uppercase tracking-[0.2em]">Registry ID: #{entry.id.slice(0,8).toUpperCase()}</span>
         </div>
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 text-white/40 text-[11px] font-bold">
-            <Calendar size={14} className="text-pak-teal" />
-            Registered: {formatDate(entry.createdAt)}
-          </div>
+          {isTrash && (
+            <div className="flex items-center gap-2 text-pak-red text-[11px] font-bold">
+              <Trash size={14} />
+              Deleted By: {entry.deletedBy} | {formatDate(entry.deletedAt)}
+            </div>
+          )}
+          {!isTrash && (
+            <div className="flex items-center gap-2 text-white/40 text-[11px] font-bold">
+              <Calendar size={14} className="text-pak-teal" />
+              Registered: {formatDate(entry.createdAt)}
+            </div>
+          )}
           <div className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${
             entry.status === 'verified' ? 'bg-pak-teal text-navy-900 border-pak-teal' :
             entry.status === 'flagged' ? 'bg-pak-red text-white border-pak-red' :
             'bg-pak-orange text-navy-900 border-pak-orange'
           }`}>
-            {entry.status}
+            {isTrash ? 'deleted' : entry.status}
           </div>
         </div>
       </div>
 
       {/* CARD CONTENT */}
-      <div className="p-8 grid grid-cols-1 lg:grid-cols-12 gap-10">
-        
-        {/* LEFT: OWNER INFO */}
-        <div className="lg:col-span-4 space-y-6">
-          <div className="flex items-center gap-3 text-pak-teal mb-2">
-            <User size={18} />
-            <h4 className="text-xs font-black uppercase tracking-[0.2em]">Owner Information</h4>
-          </div>
-          <div className="space-y-4">
-            <InfoRow label="Full Name" value={entry.ownerName} bold />
-            <InfoRow label="CNIC Number" value={entry.nicNumber || 'Not Provided'} icon={<Hash size={14}/>} />
-            <InfoRow label="Contact No." value={entry.contactNumber} icon={<Phone size={14}/>} link={`tel:${entry.contactNumber}`} />
-            <InfoRow 
-              label="WhatsApp No." 
-              value={entry.whatsappNumber} 
-              icon={<MessageCircle size={14} className="text-[#25D366]"/>} 
-              link={`https://wa.me/${formatWhatsAppNumber(entry.whatsappNumber)}`}
-              linkText="Open Chat"
-            />
-            <InfoRow label="City & Area" value={`${entry.city}`} icon={<MapPin size={14}/>} />
-          </div>
-        </div>
-
-        {/* MIDDLE: DEVICE INFO */}
-        <div className="lg:col-span-4 space-y-6 border-x border-white/5 px-0 lg:px-10">
-          <div className="flex items-center gap-3 text-pak-teal mb-2">
-            <Smartphone size={18} />
-            <h4 className="text-xs font-black uppercase tracking-[0.2em]">Device Details</h4>
-          </div>
-          <div className="space-y-4">
-            <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-              <div className="text-white/40 text-[10px] font-black uppercase tracking-widest mb-1">Make & Model</div>
-              <div className="text-2xl font-black text-white tracking-tighter uppercase">{entry.brand} {entry.model}</div>
-              <div className="text-pak-teal text-xs font-bold mt-1 uppercase tracking-widest">{entry.color || 'No Color Specified'}</div>
+      <div className="p-8 grid grid-cols-1 lg:grid-cols-12 gap-10 opacity-100">
+        <div className={isTrash ? "filter grayscale opacity-60 contents" : "contents"}>
+          {/* LEFT: OWNER INFO */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="flex items-center gap-3 text-pak-teal mb-2">
+              <User size={18} />
+              <h4 className="text-xs font-black uppercase tracking-[0.2em]">Owner Information</h4>
             </div>
-            <InfoRow label="IMEI Number" value={entry.imei} highlight />
-            <InfoRow label="Loss Location" value={entry.lossLocation} />
-            <InfoRow label="Loss Date/Time" value={formatDate(entry.lossDateTime)} />
+            <div className="space-y-4">
+              <InfoRow label="Full Name" value={entry.ownerName} bold />
+              <InfoRow label="CNIC Number" value={entry.nicNumber || 'Not Provided'} icon={<Hash size={14}/>} />
+              <InfoRow label="Contact No." value={entry.contactNumber} icon={<Phone size={14}/>} link={`tel:${entry.contactNumber}`} />
+              <InfoRow 
+                label="WhatsApp No." 
+                value={entry.whatsappNumber} 
+                icon={<MessageCircle size={14} className="text-[#25D366]"/>} 
+                link={`https://wa.me/${formatWhatsAppNumber(entry.whatsappNumber)}`}
+                linkText="Open Chat"
+              />
+              <InfoRow label="City & Area" value={`${entry.city}`} icon={<MapPin size={14}/>} />
+            </div>
           </div>
-        </div>
 
-        {/* RIGHT: VISUAL VERIFICATION */}
-        <div className="lg:col-span-4 space-y-6">
-          <div className="flex items-center gap-3 text-pak-teal mb-2">
-            <Eye size={18} />
-            <h4 className="text-xs font-black uppercase tracking-[0.2em]">Visual Evidence</h4>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <MediaBlock label="Owner Selfie" src={entry.selfieImageUrl} circular />
-            <MediaBlock label="ID/Box Proof" src={entry.proofImageUrl} />
-          </div>
-          {entry.proofType && (
-            <div className="pt-4 border-t border-white/5">
-              <div className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Proof Metadata</div>
-              <div className="flex items-center gap-2">
-                <FileText size={14} className="text-pak-teal" />
-                <span className="text-xs text-white font-bold uppercase">{entry.proofType.replace('_', ' ')} Uploaded</span>
+          {/* MIDDLE: DEVICE INFO */}
+          <div className="lg:col-span-4 space-y-6 border-x border-white/5 px-0 lg:px-10">
+            <div className="flex items-center gap-3 text-pak-teal mb-2">
+              <Smartphone size={18} />
+              <h4 className="text-xs font-black uppercase tracking-[0.2em]">Device Details</h4>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                <div className="text-white/40 text-[10px] font-black uppercase tracking-widest mb-1">Make & Model</div>
+                <div className="text-2xl font-black text-white tracking-tighter uppercase">{entry.brand} {entry.model}</div>
+                <div className="text-pak-teal text-xs font-bold mt-1 uppercase tracking-widest">{entry.color || 'No Color Specified'}</div>
               </div>
+              <InfoRow label="IMEI Number" value={entry.imei} highlight />
+              <InfoRow label="Loss Location" value={entry.lossLocation} />
+              <InfoRow label="Loss Date/Time" value={formatDate(entry.lossDateTime)} />
             </div>
-          )}
+          </div>
+
+          {/* RIGHT: VISUAL VERIFICATION */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="flex items-center gap-3 text-pak-teal mb-2">
+              <Eye size={18} />
+              <h4 className="text-xs font-black uppercase tracking-[0.2em]">Visual Evidence</h4>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <MediaBlock label="Owner Selfie" src={entry.selfieImageUrl} circular />
+              <MediaBlock label="ID/Box Proof" src={entry.proofImageUrl} />
+            </div>
+            {entry.description && (
+              <div className="pt-4 border-t border-white/5">
+                <div className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Detailed Narrative</div>
+                <p className="text-xs text-white/60 leading-relaxed italic line-clamp-3">"{entry.description}"</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -332,33 +549,62 @@ const AdminEntryCard = ({ entry, idx, onStatusUpdate, onDelete, formatDate }: an
       <div className="px-8 py-6 bg-white/[0.03] border-t border-white/5 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <span className="text-[10px] font-black uppercase tracking-widest text-white/20">Admin Actions:</span>
-          <div className="flex items-center gap-3">
-            <ActionButton 
-              label="Verify Entry" 
-              icon={<CheckCircle2 size={18}/>} 
-              active={entry.status === 'verified'}
-              color="text-pak-teal" 
-              bg="bg-pak-teal/10 hover:bg-pak-teal hover:text-navy-900"
-              onClick={() => onStatusUpdate(entry.id, 'verified')}
-            />
-            <ActionButton 
-              label="Flag/Hide" 
-              icon={<AlertTriangle size={18}/>} 
-              active={entry.status === 'flagged'}
-              color="text-pak-orange" 
-              bg="bg-pak-orange/10 hover:bg-pak-orange hover:text-navy-900"
-              onClick={() => onStatusUpdate(entry.id, 'flagged')}
-            />
-          </div>
+          {isTrash ? (
+            <div className="flex items-center gap-3 text-white">
+              <ActionButton 
+                label="Restore Entry" 
+                icon={<RotateCcw size={18}/>} 
+                active={false}
+                color="text-pak-teal" 
+                bg="bg-pak-teal/10 hover:bg-pak-teal hover:text-navy-900"
+                onClick={onRestore}
+              />
+              <button 
+                onClick={onPermanentDelete}
+                className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-pak-red/10 text-pak-red hover:bg-pak-red hover:text-white transition-all text-xs font-black uppercase tracking-widest border border-pak-red/20"
+              >
+                <Trash2 size={18} /> Permanent Delete
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <ActionButton 
+                label="Verify" 
+                icon={<CheckCircle2 size={18}/>} 
+                active={entry.status === 'verified'}
+                color="text-pak-teal" 
+                bg="bg-pak-teal/10 hover:bg-pak-teal hover:text-navy-900"
+                onClick={() => onStatusUpdate(entry.id, 'verified')}
+              />
+              <ActionButton 
+                label="Flag" 
+                icon={<AlertTriangle size={18}/>} 
+                active={entry.status === 'flagged'}
+                color="text-pak-orange" 
+                bg="bg-pak-orange/10 hover:bg-pak-orange hover:text-navy-900"
+                onClick={() => onStatusUpdate(entry.id, 'flagged')}
+              />
+              <ActionButton 
+                label="Edit Details" 
+                icon={<Edit size={18}/>} 
+                active={false}
+                color="text-white" 
+                bg="bg-white/10 hover:bg-white hover:text-black"
+                onClick={onEdit}
+              />
+            </div>
+          )}
         </div>
         
-        <button 
-          onClick={() => onDelete(entry.id)}
-          className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-pak-red/10 text-pak-red hover:bg-pak-red hover:text-white transition-all text-xs font-black uppercase tracking-widest border border-pak-red/20"
-        >
-          <Trash2 size={18} />
-          Delete Permanently
-        </button>
+        {!isTrash && (
+          <button 
+            onClick={onDelete}
+            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-pak-red/10 text-pak-red hover:bg-pak-red hover:text-white transition-all text-xs font-black uppercase tracking-widest border border-pak-red/20"
+          >
+            <Trash2 size={18} />
+            Move to Trash
+          </button>
+        )}
       </div>
     </motion.div>
   );
@@ -445,16 +691,16 @@ const StatCard = ({ title, value, icon, color, bg, delay }: any) => (
     initial={{ opacity: 0, scale: 0.9 }}
     animate={{ opacity: 1, scale: 1 }}
     transition={{ delay }}
-    className={`p-8 rounded-[2.5rem] border border-white/5 shadow-2xl relative overflow-hidden group ${bg}`}
+    className={`p-6 rounded-[2.5rem] border border-white/5 shadow-2xl relative overflow-hidden group ${bg}`}
   >
-    <div className={`p-4 rounded-2xl w-fit mb-6 ${color} border border-white/5 bg-black/20 group-hover:scale-110 transition-transform`}>
-      {React.cloneElement(icon, { size: 28 })}
+    <div className={`p-4 rounded-2xl w-fit mb-4 ${color} border border-white/5 bg-black/20 group-hover:scale-110 transition-transform`}>
+      {React.cloneElement(icon, { size: 20 })}
     </div>
-    <div className="text-5xl font-black text-white mb-2 tracking-tighter tabular-nums">{value}</div>
-    <div className="text-[11px] font-black uppercase tracking-[0.3em] text-white/40">{title}</div>
+    <div className="text-4xl font-black text-white mb-1 tracking-tighter tabular-nums">{value}</div>
+    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">{title}</div>
     {/* Background Pattern */}
     <div className="absolute -right-4 -bottom-4 text-white/[0.03] rotate-12 transition-transform group-hover:rotate-0 duration-700">
-      {React.cloneElement(icon, { size: 140 })}
+      {React.cloneElement(icon, { size: 100 })}
     </div>
   </motion.div>
 );
