@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
-import { PAKISTANI_CITIES, PHONE_BRANDS, formatNIC, validateNIC, validateIMEI, formatWhatsAppNumber } from '../constants';
+import { PAKISTANI_CITIES, PHONE_BRANDS, formatNIC, validateNIC, validateIMEI, formatWhatsAppNumber, validateWhatsAppNumber } from '../constants';
 import { sendConfirmationEmail } from '../services/emailService';
 import { uploadToCloudinary } from '../services/cloudinaryService';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
@@ -389,10 +389,18 @@ const Register: React.FC = () => {
   };
 
   const handleContactChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/\D/g, '').slice(0, 11);
-    const newFormData = { ...formData, contactNumber: val };
+    let val = e.target.value;
+    
+    // Automatically replace leading 0 with +92
+    if (val.startsWith('0')) {
+      val = '+92' + val.slice(1);
+    }
+    
+    // Clean non-digits except +
+    const cleanedVal = val.replace(/[^\d+]/g, '').slice(0, 13);
+    const newFormData = { ...formData, contactNumber: cleanedVal };
     if (whatsappSameAsContact) {
-      newFormData.whatsappNumber = val;
+      newFormData.whatsappNumber = cleanedVal;
     }
     setFormData(newFormData);
   };
@@ -525,6 +533,11 @@ const Register: React.FC = () => {
 
     if (!validateIMEI(formData.imei)) {
       toast.error(t('reg_error_imei'));
+      return;
+    }
+
+    if (!validateWhatsAppNumber(formData.whatsappNumber)) {
+      toast.error("Valid WhatsApp number lazmi hai (e.g. 03XXXXXXXXX)");
       return;
     }
 
@@ -817,7 +830,15 @@ const Register: React.FC = () => {
                 placeholder="03XXXXXXXXX"
                 className={`${inputClasses} ${whatsappSameAsContact ? 'opacity-50 cursor-not-allowed' : ''}`}
                 value={formData.whatsappNumber}
-                onChange={(e) => setFormData({ ...formData, whatsappNumber: e.target.value.replace(/\D/g, '').slice(0, 11) })}
+                onChange={(e) => {
+                  let val = e.target.value;
+                  if (val.startsWith('0')) {
+                    val = '+92' + val.slice(1);
+                  }
+                  // Clean non-digits except +
+                  const cleanedVal = val.replace(/[^\d+]/g, '').slice(0, 13);
+                  setFormData({ ...formData, whatsappNumber: cleanedVal });
+                }}
               />
             </div>
           </div>

@@ -401,7 +401,7 @@ const MediaBlock = ({ label, src, circular }: any) => {
         ) : (
           <>
             <img 
-              src={src + (circular ? '?w=200&q=auto' : '?w=600&q=auto')} 
+              src={src + (circular ? '?w=400&q=auto' : '?w=800&q=auto')} 
               alt={label} 
               className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-110" 
             />
@@ -409,19 +409,29 @@ const MediaBlock = ({ label, src, circular }: any) => {
               <a href={src} target="_blank" rel="noreferrer" className="p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all">
                 <Eye size={20} />
               </a>
-              <a href={src} download className="p-3 bg-pak-teal/20 rounded-full text-pak-teal hover:bg-pak-teal transition-all">
-                <Download size={20} />
-              </a>
             </div>
           </>
         )}
       </div>
-      <div className="text-center">
+      <div className="text-center space-y-2">
         <span className="text-[9px] font-black uppercase tracking-widest text-white/30">{label}</span>
         {!isMissing && (
-          <div className="mt-1">
-            <a href={src} target="_blank" rel="noreferrer" className="text-pak-teal text-[8px] font-bold uppercase hover:underline flex items-center justify-center gap-1">
-              <Download size={10} /> Full Size View
+          <div className="flex flex-col gap-2">
+            <a 
+              href={src} 
+              target="_blank" 
+              rel="noreferrer" 
+              className="bg-pak-teal/10 border border-pak-teal/20 text-pak-teal px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-pak-teal hover:text-navy-900 transition-all flex items-center justify-center gap-2"
+            >
+              <Download size={12} /> Download Photo
+            </a>
+            <a 
+              href={src} 
+              target="_blank" 
+              rel="noreferrer" 
+              className="text-white/40 text-[8px] font-bold uppercase hover:text-white transition-all underline underline-offset-4"
+            >
+              Full Size View
             </a>
           </div>
         )}

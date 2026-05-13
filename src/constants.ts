@@ -46,22 +46,25 @@ export const validateIMEI = (imei: string) => {
 export const formatWhatsAppNumber = (number: string) => {
   if (!number) return '';
   
-  // Remove all spaces, dashes, brackets
-  let cleaned = number.replace(/[\s\-\(\)]/g, '');
+  // Remove all non-digit characters
+  let cleaned = number.replace(/\D/g, '');
   
-  // Remove leading + if exists
-  cleaned = cleaned.replace(/^\+/, '');
-  
-  // If starts with 03 → replace 0 with 92
-  if (cleaned.startsWith('03')) {
+  // If starts with 0 (e.g., 0315...) -> replace leading 0 with 92
+  if (cleaned.startsWith('0')) {
     cleaned = '92' + cleaned.slice(1);
   }
   
-  // If starts with 3 → add 92
-  if (cleaned.startsWith('3')) {
+  // If starts with 3 (e.g., 315...) and length is 10 -> prepend 92
+  if (cleaned.startsWith('3') && cleaned.length === 10) {
     cleaned = '92' + cleaned;
   }
   
-  // If already starts with 92 → keep as is
+  // The goal is to return 923XXXXXXXXX
   return cleaned;
+};
+
+export const validateWhatsAppNumber = (number: string) => {
+  const cleaned = formatWhatsAppNumber(number);
+  // Pakistani mobile numbers are 12 digits starting with 923
+  return /^923\d{9}$/.test(cleaned);
 };
