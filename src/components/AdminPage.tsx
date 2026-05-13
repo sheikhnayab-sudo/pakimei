@@ -53,10 +53,9 @@ const AdminPage: React.FC = () => {
   const adminEmail = 'sheikhnayab@gmail.com';
   const isAdminUser = currentUser?.email?.toLowerCase() === adminEmail;
   const [entries, setEntries] = useState<any[]>([]);
-  const [trashEntries, setTrashEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<'all' | 'verified' | 'flagged' | 'pending' | 'trash'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'verified' | 'flagged' | 'pending'>('all');
   const [editingEntry, setEditingEntry] = useState<any | null>(null);
 
   useEffect(() => {
@@ -72,27 +71,14 @@ const AdminPage: React.FC = () => {
         ...doc.data()
       }));
       setEntries(data);
-      if (activeTab !== 'trash') setLoading(false);
+      setLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'phones');
       setLoading(false);
     });
 
-    const trashQ = query(collection(db, 'trash'), orderBy('deletedAt', 'desc'));
-    const unsubscribeTrash = onSnapshot(trashQ, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setTrashEntries(data);
-      if (activeTab === 'trash') setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'trash');
-    });
-
     return () => {
       unsubscribe();
-      unsubscribeTrash();
     };
   }, [currentUser, activeTab, isAdminUser]);
 
@@ -122,58 +108,33 @@ const AdminPage: React.FC = () => {
     }
   };
 
-  const moveToTrash = async (entry: any) => {
-    if (!window.confirm('🚩 MOVE TO TRASH: Are you sure? You can restore it later.')) return;
-    const t = toast.loading("Moving to trash...");
-    
+  const handleDelete = async (entryId: string) => {
     try {
-      const { id, ...cleanData } = entry;
-      const trashDoc = {
-        ...cleanData,
-        deletedAt: serverTimestamp(),
-        deletedBy: currentUser?.email || 'Unknown Admin',
-        originalStatus: entry.status || 'pending'
-      };
-      
-      await setDoc(doc(db, 'trash', entry.id), trashDoc);
-      await deleteDoc(doc(db, 'phones', entry.id));
-      
-      toast.success('Entry moved to trash 🗑️', { id: t });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `trash/${entry.id}`);
-      toast.error('Failed to move to trash.', { id: t });
-    }
-  };
+      // Check if admin
+      if (currentUser?.email?.toLowerCase() !== 'sheikhnayab@gmail.com') {
+        toast.error('Sirf admin delete kar sakta hai!');
+        return;
+      }
 
-  const restoreFromTrash = async (entry: any) => {
-    const t = toast.loading("Restoring entry...");
-    try {
-      const { id, deletedAt, deletedBy, originalStatus, ...cleanData } = entry;
-      const restoredData = {
-        ...cleanData,
-        updatedAt: serverTimestamp(),
-        status: originalStatus || 'pending'
-      };
-      
-      await setDoc(doc(db, 'phones', entry.id), restoredData);
-      await deleteDoc(doc(db, 'trash', entry.id));
-      
-      toast.success('Entry restored successfully ✅', { id: t });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `phones/${entry.id}`);
-      toast.error('Failed to restore entry.', { id: t });
-    }
-  };
+      // Confirm before delete
+      const confirmed = window.confirm(
+        'Kya aap sure hain? Ye entry permanently delete ho jaye gi.'
+      );
+      if (!confirmed) return;
 
-  const permanentDelete = async (id: string) => {
-    if (!window.confirm('🚨 PERMANENT DELETE: This cannot be undone! Are you sure?')) return;
-    const t = toast.loading("Deleting permanently...");
-    try {
-      await deleteDoc(doc(db, 'trash', id));
-      toast.success('Deleted permanently 💀', { id: t });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `trash/${id}`);
-      toast.error('Failed to delete permanently.', { id: t });
+      const t = toast.loading("Delete ho raha hai...");
+
+      // Delete from Firestore
+      await deleteDoc(doc(db, 'phones', entryId));
+      
+      // Remove from local state immediately
+      setEntries(prev => prev.filter(e => e.id !== entryId));
+      
+      toast.success('Entry delete ho gayi! ✅', { id: t });
+      
+    } catch (err: any) {
+      console.error('Delete error:', err.code, err.message);
+      toast.error('Delete nahi hua: ' + err.message);
     }
   };
 
@@ -195,12 +156,9 @@ const AdminPage: React.FC = () => {
     pending: entries.filter(e => e.status === 'pending').length,
     verified: entries.filter(e => e.status === 'verified').length,
     flagged: entries.filter(e => e.status === 'flagged').length,
-    trash: trashEntries.length
   };
 
-  const currentEntries = activeTab === 'trash' ? trashEntries : entries;
-
-  const filteredEntries = currentEntries.filter(entry => {
+  const filteredEntries = entries.filter(entry => {
     const searchString = searchTerm.toLowerCase();
     const matchSearch = 
       (entry.imei || '').toLowerCase().includes(searchString) ||
@@ -209,7 +167,7 @@ const AdminPage: React.FC = () => {
       (entry.nicNumber || '').toLowerCase().includes(searchString) ||
       (entry.brand + ' ' + (entry.model || '')).toLowerCase().includes(searchString);
     
-    const matchTab = activeTab === 'all' || activeTab === 'trash' || entry.status === activeTab;
+    const matchTab = activeTab === 'all' || entry.status === activeTab;
     return matchSearch && matchTab;
   });
 
@@ -237,7 +195,7 @@ const AdminPage: React.FC = () => {
               <span className="text-pak-teal font-black uppercase tracking-[0.3em] text-xs">Admin Control Center</span>
             </motion.div>
             <h1 className="font-display text-5xl sm:text-6xl font-black text-white tracking-tighter">
-              Manage <span className="text-pak-teal">{activeTab === 'trash' ? 'Trash' : 'Registry'}</span>
+              Manage <span className="text-pak-teal">Registry</span>
             </h1>
           </div>
           
@@ -254,17 +212,16 @@ const AdminPage: React.FC = () => {
         </div>
 
         {/* STATS GRID */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard title="Total" value={stats.total} icon={<LayoutGrid />} color="text-white" bg="bg-white/5" delay={0} />
           <StatCard title="Pending" value={stats.pending} icon={<Clock />} color="text-pak-orange" bg="bg-pak-orange/10" delay={0.1} />
           <StatCard title="Verified" value={stats.verified} icon={<CheckCircle2 />} color="text-pak-teal" bg="bg-pak-teal/10" delay={0.2} />
           <StatCard title="Flagged" value={stats.flagged} icon={<AlertTriangle />} color="text-pak-red" bg="bg-pak-red/10" delay={0.3} />
-          <StatCard title="Trash" value={stats.trash} icon={<Trash2 />} color="text-white/30" bg="bg-white/5" delay={0.4} />
         </div>
 
         {/* TABS CONTROLS */}
         <div className="flex gap-3 overflow-x-auto pb-4 sticky top-24 z-20 scrollbar-hide py-2 backdrop-blur-md bg-black/50 mx-[-1rem] px-4">
-          {(['all', 'pending', 'verified', 'flagged', 'trash'] as const).map((tab) => (
+          {(['all', 'pending', 'verified', 'flagged'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -277,8 +234,7 @@ const AdminPage: React.FC = () => {
               <div className={`w-2 h-2 rounded-full ${
                 tab === 'verified' ? 'bg-pak-teal' : 
                 tab === 'flagged' ? 'bg-pak-red' : 
-                tab === 'pending' ? 'bg-pak-orange' : 
-                tab === 'trash' ? 'bg-white' : 'bg-white/40'
+                tab === 'pending' ? 'bg-pak-orange' : 'bg-white/40'
               }`} />
               {tab} ({stats[tab]})
             </button>
@@ -303,12 +259,9 @@ const AdminPage: React.FC = () => {
                 entry={entry} 
                 idx={idx} 
                 onStatusUpdate={handleStatusUpdate}
-                onDelete={() => moveToTrash(entry)}
-                onRestore={() => restoreFromTrash(entry)}
-                onPermanentDelete={() => permanentDelete(entry.id)}
+                onDelete={() => handleDelete(entry.id)}
                 onEdit={() => setEditingEntry(entry)}
                 formatDate={formatDate}
-                isTrash={activeTab === 'trash'}
               />
             ))
           )}
@@ -443,7 +396,7 @@ const InputGroup = ({ label, name, value, onChange }: any) => (
   </div>
 );
 
-const AdminEntryCard = ({ entry, idx, onStatusUpdate, onDelete, onRestore, onPermanentDelete, onEdit, formatDate, isTrash }: any) => {
+const AdminEntryCard = ({ entry, idx, onStatusUpdate, onDelete, onEdit, formatDate }: any) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -469,31 +422,23 @@ const AdminEntryCard = ({ entry, idx, onStatusUpdate, onDelete, onRestore, onPer
           <span className="text-white/30 text-[10px] font-black uppercase tracking-[0.2em]">Registry ID: #{entry.id.slice(0,8).toUpperCase()}</span>
         </div>
         <div className="flex items-center gap-6">
-          {isTrash && (
-            <div className="flex items-center gap-2 text-pak-red text-[11px] font-bold">
-              <Trash size={14} />
-              Deleted By: {entry.deletedBy} | {formatDate(entry.deletedAt)}
-            </div>
-          )}
-          {!isTrash && (
-            <div className="flex items-center gap-2 text-white/40 text-[11px] font-bold">
-              <Calendar size={14} className="text-pak-teal" />
-              Registered: {formatDate(entry.createdAt)}
-            </div>
-          )}
+          <div className="flex items-center gap-2 text-white/40 text-[11px] font-bold">
+            <Calendar size={14} className="text-pak-teal" />
+            Registered: {formatDate(entry.createdAt)}
+          </div>
           <div className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${
             entry.status === 'verified' ? 'bg-pak-teal text-navy-900 border-pak-teal' :
             entry.status === 'flagged' ? 'bg-pak-red text-white border-pak-red' :
             'bg-pak-orange text-navy-900 border-pak-orange'
           }`}>
-            {isTrash ? 'deleted' : entry.status}
+            {entry.status}
           </div>
         </div>
       </div>
 
       {/* CARD CONTENT */}
       <div className="p-8 grid grid-cols-1 lg:grid-cols-12 gap-10 opacity-100">
-        <div className={isTrash ? "filter grayscale opacity-60 contents" : "contents"}>
+        <div className="contents">
           {/* LEFT: OWNER INFO */}
           <div className="lg:col-span-4 space-y-6">
             <div className="flex items-center gap-3 text-pak-teal mb-2">
@@ -557,62 +502,41 @@ const AdminEntryCard = ({ entry, idx, onStatusUpdate, onDelete, onRestore, onPer
       <div className="px-8 py-6 bg-white/[0.03] border-t border-white/5 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <span className="text-[10px] font-black uppercase tracking-widest text-white/20">Admin Actions:</span>
-          {isTrash ? (
-            <div className="flex items-center gap-3 text-white">
-              <ActionButton 
-                label="Restore Entry" 
-                icon={<RotateCcw size={18}/>} 
-                active={false}
-                color="text-pak-teal" 
-                bg="bg-pak-teal/10 hover:bg-pak-teal hover:text-navy-900"
-                onClick={onRestore}
-              />
-              <button 
-                onClick={onPermanentDelete}
-                className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-pak-red/10 text-pak-red hover:bg-pak-red hover:text-white transition-all text-xs font-black uppercase tracking-widest border border-pak-red/20"
-              >
-                <Trash2 size={18} /> Permanent Delete
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <ActionButton 
-                label="Verify" 
-                icon={<CheckCircle2 size={18}/>} 
-                active={entry.status === 'verified'}
-                color="text-pak-teal" 
-                bg="bg-pak-teal/10 hover:bg-pak-teal hover:text-navy-900"
-                onClick={() => onStatusUpdate(entry.id, 'verified')}
-              />
-              <ActionButton 
-                label="Flag" 
-                icon={<AlertTriangle size={18}/>} 
-                active={entry.status === 'flagged'}
-                color="text-pak-orange" 
-                bg="bg-pak-orange/10 hover:bg-pak-orange hover:text-navy-900"
-                onClick={() => onStatusUpdate(entry.id, 'flagged')}
-              />
-              <ActionButton 
-                label="Edit Details" 
-                icon={<Edit size={18}/>} 
-                active={false}
-                color="text-white" 
-                bg="bg-white/10 hover:bg-white hover:text-black"
-                onClick={onEdit}
-              />
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            <ActionButton 
+              label="Verify" 
+              icon={<CheckCircle2 size={18}/>} 
+              active={entry.status === 'verified'}
+              color="text-pak-teal" 
+              bg="bg-pak-teal/10 hover:bg-pak-teal hover:text-navy-900"
+              onClick={() => onStatusUpdate(entry.id, 'verified')}
+            />
+            <ActionButton 
+              label="Flag" 
+              icon={<AlertTriangle size={18}/>} 
+              active={entry.status === 'flagged'}
+              color="text-pak-orange" 
+              bg="bg-pak-orange/10 hover:bg-pak-orange hover:text-navy-900"
+              onClick={() => onStatusUpdate(entry.id, 'flagged')}
+            />
+            <ActionButton 
+              label="Edit Details" 
+              icon={<Edit size={18}/>} 
+              active={false}
+              color="text-white" 
+              bg="bg-white/10 hover:bg-white hover:text-black"
+              onClick={onEdit}
+            />
+          </div>
         </div>
         
-        {!isTrash && (
-          <button 
-            onClick={onDelete}
-            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-pak-red/10 text-pak-red hover:bg-pak-red hover:text-white transition-all text-xs font-black uppercase tracking-widest border border-pak-red/20"
-          >
-            <Trash2 size={18} />
-            Move to Trash
-          </button>
-        )}
+        <button 
+          onClick={onDelete}
+          className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-pak-red/10 text-pak-red hover:bg-pak-red hover:text-white transition-all text-xs font-black uppercase tracking-widest border border-pak-red/20"
+        >
+          <Trash2 size={18} />
+          Delete Permanently
+        </button>
       </div>
     </motion.div>
   );
