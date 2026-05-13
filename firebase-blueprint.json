@@ -6,7 +6,7 @@
       "type": "object",
       "properties": {
         "ownerName": { "type": "string", "description": "Full name of the owner." },
-        "nicNumber": { "type": "string", "description": "Pakistani NIC of the owner." },
+        "nicNumber": { "type": "string", "description": "Pakistani CNIC of the owner." },
         "address": {
           "type": "object",
           "properties": {

@@ -22,9 +22,21 @@ import {
   MapPin, 
   Loader2,
   TrendingUp,
-  LayoutGrid
+  LayoutGrid,
+  Download,
+  Eye,
+  ExternalLink,
+  MessageCircle,
+  Phone,
+  Hash,
+  Smartphone,
+  User,
+  Clock,
+  ShieldCheck,
+  FileText
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { formatWhatsAppNumber } from '../constants';
 
 const AdminPage: React.FC = () => {
   const { currentUser } = useAuth();
@@ -34,7 +46,6 @@ const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'all' | 'verified' | 'flagged' | 'pending'>('all');
 
   useEffect(() => {
-    // Only subscribe to onSnapshot if the current user is the admin
     if (currentUser?.email !== 'sheikhnayab@gmail.com') {
       setLoading(false);
       return;
@@ -57,7 +68,6 @@ const AdminPage: React.FC = () => {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // ACCESS CONTROL
   if (!currentUser || currentUser.email !== 'sheikhnayab@gmail.com') {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -80,7 +90,7 @@ const AdminPage: React.FC = () => {
       toast.success(`Entry marked as ${newStatus} ✅`);
     } catch (err) {
       console.error("Update error:", err);
-      toast.error('Update failed. Check permissions.');
+      toast.error('Update failed.');
     }
   };
 
@@ -95,245 +105,360 @@ const AdminPage: React.FC = () => {
     }
   };
 
-  // Stats calculation
   const stats = {
     total: entries.length,
+    pending: entries.filter(e => e.status === 'pending').length,
     verified: entries.filter(e => e.status === 'verified').length,
     flagged: entries.filter(e => e.status === 'flagged').length,
-    today: entries.filter(e => {
-      const created = e.createdAt?.toDate ? e.createdAt.toDate() : new Date(e.createdAt);
-      return new Date(created).toDateString() === new Date().toDateString();
-    }).length
   };
 
-  // Filtered entries
   const filteredEntries = entries.filter(entry => {
+    const searchString = searchTerm.toLowerCase();
     const matchSearch = 
-      entry.imei.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      entry.ownerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      entry.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (entry.brand + ' ' + entry.model).toLowerCase().includes(searchTerm.toLowerCase());
+      (entry.imei || '').toLowerCase().includes(searchString) ||
+      (entry.ownerName || '').toLowerCase().includes(searchString) ||
+      (entry.city || '').toLowerCase().includes(searchString) ||
+      (entry.nicNumber || '').toLowerCase().includes(searchString) ||
+      (entry.brand + ' ' + (entry.model || '')).toLowerCase().includes(searchString);
     
     const matchTab = activeTab === 'all' || entry.status === activeTab;
     return matchSearch && matchTab;
   });
 
+  const formatDate = (date: any) => {
+    if (!date) return 'N/A';
+    const d = date?.toDate ? date.toDate() : new Date(date);
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
   return (
-    <div className="min-h-screen pt-24 pb-20 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen pt-24 pb-20 px-4 sm:px-6 lg:px-8 bg-black">
+      <div className="max-w-7xl mx-auto space-y-10">
         
-        {/* TOP BAR */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-          >
-            <h1 className="font-display text-4xl sm:text-5xl font-black text-white tracking-tighter outline-glow">
-              Admin <span className="text-pak-teal">Panel</span>
+        {/* HEADER SECTION */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+          <div>
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-3 mb-2"
+            >
+              <div className="bg-pak-teal/20 p-2 rounded-xl border border-pak-teal/30">
+                <ShieldCheck size={24} className="text-pak-teal" />
+              </div>
+              <span className="text-pak-teal font-black uppercase tracking-[0.3em] text-xs">Admin Control Center</span>
+            </motion.div>
+            <h1 className="font-display text-5xl sm:text-6xl font-black text-white tracking-tighter">
+              Manage <span className="text-pak-teal">Registry</span>
             </h1>
-            <p className="text-white/40 font-bold uppercase tracking-[0.2em] text-[10px] sm:text-xs">Security & Registry Management</p>
-          </motion.div>
+          </div>
           
-          <div className="glass rounded-2xl flex items-center p-1 px-4 border border-white/10 w-full md:w-96 group focus-within:border-pak-teal/50 transition-all">
-            <Search className="text-white/20 group-focus-within:text-pak-teal transition-colors" size={20} />
+          <div className="glass rounded-[2rem] flex items-center p-2 px-6 border border-white/10 w-full md:w-[400px] shadow-2xl focus-within:border-pak-teal/50 focus-within:ring-4 focus-within:ring-pak-teal/10 transition-all">
+            <Search className="text-white/20" size={24} />
             <input 
               type="text"
-              placeholder="Search IMEI, Owner, Model..."
-              className="bg-transparent border-none text-white p-3 w-full outline-none text-sm font-medium placeholder:text-white/20"
+              placeholder="IMEI, Name, CNIC, or City..."
+              className="bg-transparent border-none text-white p-4 w-full outline-none text-base font-bold placeholder:text-white/20"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
 
-        {/* STATS */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          <StatCard title="Total Registry" value={stats.total} icon={<LayoutGrid />} color="text-white" delay={0} />
-          <StatCard title="Verified Data" value={stats.verified} icon={<CheckCircle2 />} color="text-pak-teal" delay={0.1} />
-          <StatCard title="Flagged (Hidden)" value={stats.flagged} icon={<AlertTriangle />} color="text-pak-red" delay={0.2} />
-          <StatCard title="Today's Entries" value={stats.today} icon={<TrendingUp />} color="text-pak-orange" delay={0.3} />
+        {/* STATS GRID */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard title="Total Reports" value={stats.total} icon={<LayoutGrid />} color="text-white" bg="bg-white/5" delay={0} />
+          <StatCard title="Pending" value={stats.pending} icon={<Clock />} color="text-pak-orange" bg="bg-pak-orange/10" delay={0.1} />
+          <StatCard title="Verified" value={stats.verified} icon={<CheckCircle2 />} color="text-pak-teal" bg="bg-pak-teal/10" delay={0.2} />
+          <StatCard title="Flagged" value={stats.flagged} icon={<AlertTriangle />} color="text-pak-red" bg="bg-pak-red/10" delay={0.3} />
         </div>
 
-        {/* CONTROLS */}
-        <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide">
+        {/* TABS CONTROLS */}
+        <div className="flex gap-3 overflow-x-auto pb-4 sticky top-24 z-20 scrollbar-hide py-2 backdrop-blur-md bg-black/50 mx-[-1rem] px-4">
           {(['all', 'pending', 'verified', 'flagged'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border shrink-0 ${
+              className={`px-8 py-4 rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest transition-all border shrink-0 flex items-center gap-2 ${
                 activeTab === tab 
-                  ? 'bg-pak-teal text-navy-900 border-pak-teal shadow-lg shadow-pak-teal/20' 
+                  ? 'bg-pak-teal text-navy-900 border-pak-teal shadow-xl shadow-pak-teal/30 scale-105' 
                   : 'bg-white/5 text-white/40 border-white/5 hover:bg-white/10'
               }`}
             >
-              {tab}
+              <div className={`w-2 h-2 rounded-full ${
+                tab === 'verified' ? 'bg-pak-teal' : 
+                tab === 'flagged' ? 'bg-pak-red' : 
+                tab === 'pending' ? 'bg-pak-orange' : 'bg-white/40'
+              }`} />
+              {tab} ({stats[tab as keyof typeof stats] ?? stats.total})
             </button>
           ))}
         </div>
 
-        {/* DATA TABLE */}
-        <div className="glass rounded-[2rem] border border-white/10 overflow-hidden shadow-2xl backdrop-blur-xl">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-white/5 border-b border-white/10">
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-white/30">Owner & Date</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-white/30">Phone & IMEI</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-white/30 text-center">Visual Verification</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-white/30">Status</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-white/30 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {loading ? (
-                  <tr>
-                    <td colSpan={5} className="py-20 text-center">
-                      <Loader2 className="animate-spin mx-auto text-pak-teal mb-4" size={32} />
-                      <p className="text-white/40 font-bold uppercase tracking-widest text-xs">Loading Database...</p>
-                    </td>
-                  </tr>
-                ) : filteredEntries.map((entry, idx) => (
-                  <motion.tr 
-                    key={entry.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.03 }}
-                    className="hover:bg-white/[0.02] transition-colors"
-                  >
-                    <td className="px-8 py-6">
-                      <div className="font-bold text-white text-lg tracking-tight mb-1">{entry.ownerName}</div>
-                      <div className="flex items-center gap-2 text-white/30 text-[10px] font-black uppercase tracking-widest">
-                        <Calendar size={12} className="text-pak-teal" />
-                        {entry.createdAt?.toDate 
-                          ? entry.createdAt.toDate().toLocaleDateString('en-GB') 
-                          : new Date(entry.createdAt).toLocaleDateString('en-GB')}
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="font-bold text-white mb-1 uppercase tracking-tighter">{entry.brand} {entry.model}</div>
-                      <div className="text-pak-teal font-mono text-xs font-bold bg-pak-teal/5 px-2 py-0.5 rounded w-fit">{entry.imei}</div>
-                      <div className="text-white/30 text-[10px] font-black uppercase tracking-widest mt-2 flex items-center gap-1.5">
-                        <MapPin size={10} /> {entry.city}
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="flex justify-center gap-4">
-                        <Thumbnail label="Selfie" src={entry.selfieImageUrl} circular />
-                        <Thumbnail label="Proof" src={entry.proofImageUrl} />
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <span className={`inline-flex items-center px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${
-                        entry.status === 'verified' ? 'bg-pak-teal/20 text-pak-teal border-pak-teal/30' :
-                        entry.status === 'flagged' ? 'bg-pak-red/20 text-pak-red border-pak-red/30' :
-                        'bg-pak-orange/20 text-pak-orange border-pak-orange/30'
-                      }`}>
-                        {entry.status}
-                      </span>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {entry.status !== 'verified' && (
-                          <ActionButton 
-                            onClick={() => handleStatusUpdate(entry.id, 'verified')}
-                            icon={<CheckCircle2 size={16} />}
-                            color="text-pak-teal"
-                            bg="bg-pak-teal/10 hover:bg-pak-teal"
-                            title="Verify Entry"
-                          />
-                        )}
-                        {entry.status !== 'flagged' && (
-                          <ActionButton 
-                            onClick={() => handleStatusUpdate(entry.id, 'flagged')}
-                            icon={<AlertTriangle size={16} />}
-                            color="text-pak-red"
-                            bg="bg-pak-red/10 hover:bg-pak-red"
-                            title="Flag Entry"
-                          />
-                        )}
-                        <ActionButton 
-                          onClick={() => handleDelete(entry.id)}
-                          icon={<Trash2 size={16} />}
-                          color="text-white/40"
-                          bg="bg-white/5 hover:bg-white hover:text-black"
-                          title="Delete Permanently"
-                        />
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))}
-                {!loading && filteredEntries.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-24 text-center">
-                      <p className="text-white/20 italic font-medium">No reports found matching your filters.</p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+        {/* DETAILED LISTING */}
+        <div className="space-y-8">
+          {loading ? (
+            <div className="py-32 flex flex-col items-center justify-center glass rounded-[3rem]">
+              <Loader2 className="animate-spin text-pak-teal mb-6" size={64} />
+              <p className="text-white/40 font-black uppercase tracking-[0.3em] text-sm animate-pulse">Scanning Decrypted Data Vault...</p>
+            </div>
+          ) : filteredEntries.length === 0 ? (
+            <div className="py-32 text-center glass rounded-[3rem] border border-white/5">
+              <p className="text-white/20 text-xl font-bold italic tracking-tight">No results matched your high-level search...</p>
+            </div>
+          ) : (
+            filteredEntries.map((entry, idx) => (
+              <AdminEntryCard 
+                key={entry.id} 
+                entry={entry} 
+                idx={idx} 
+                onStatusUpdate={handleStatusUpdate}
+                onDelete={handleDelete}
+                formatDate={formatDate}
+              />
+            ))
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-const StatCard = ({ title, value, icon, color, delay }: any) => (
-  <motion.div 
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay }}
-    className="glass p-8 rounded-[2rem] border border-white/10 shadow-2xl relative overflow-hidden"
-  >
-    <div className={`p-4 rounded-2xl bg-white/5 w-fit mb-6 ${color} border border-white/5`}>
-      {React.cloneElement(icon, { size: 24 })}
+const AdminEntryCard = ({ entry, idx, onStatusUpdate, onDelete, formatDate }: any) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: idx * 0.05 }}
+      className={`glass rounded-[2.5rem] border overflow-hidden transition-all hover:shadow-2xl hover:shadow-pak-teal/5 ${
+        entry.status === 'verified' ? 'border-pak-teal/30 shadow-pak-teal/5' : 
+        entry.status === 'flagged' ? 'border-pak-red/30' : 'border-white/10'
+      }`}
+    >
+      {/* CARD HEADER */}
+      <div className={`px-8 py-5 flex items-center justify-between border-b border-white/5 ${
+        entry.status === 'verified' ? 'bg-pak-teal/5' : 
+        entry.status === 'flagged' ? 'bg-pak-red/5' : 'bg-white/5'
+      }`}>
+        <div className="flex items-center gap-4">
+          <div className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${
+            entry.reportType === 'stolen' ? 'bg-pak-red/20 text-pak-red' : 'bg-pak-teal/20 text-pak-teal'
+          }`}>
+            <div className={`w-2 h-2 rounded-full animate-pulse ${entry.reportType === 'stolen' ? 'bg-pak-red' : 'bg-pak-teal'}`} />
+            {entry.reportType === 'stolen' ? '🚨 STOLEN Report' : '⚠️ LOST Report'}
+          </div>
+          <span className="text-white/30 text-[10px] font-black uppercase tracking-[0.2em]">Registry ID: #{entry.id.slice(0,8).toUpperCase()}</span>
+        </div>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 text-white/40 text-[11px] font-bold">
+            <Calendar size={14} className="text-pak-teal" />
+            Registered: {formatDate(entry.createdAt)}
+          </div>
+          <div className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${
+            entry.status === 'verified' ? 'bg-pak-teal text-navy-900 border-pak-teal' :
+            entry.status === 'flagged' ? 'bg-pak-red text-white border-pak-red' :
+            'bg-pak-orange text-navy-900 border-pak-orange'
+          }`}>
+            {entry.status}
+          </div>
+        </div>
+      </div>
+
+      {/* CARD CONTENT */}
+      <div className="p-8 grid grid-cols-1 lg:grid-cols-12 gap-10">
+        
+        {/* LEFT: OWNER INFO */}
+        <div className="lg:col-span-4 space-y-6">
+          <div className="flex items-center gap-3 text-pak-teal mb-2">
+            <User size={18} />
+            <h4 className="text-xs font-black uppercase tracking-[0.2em]">Owner Information</h4>
+          </div>
+          <div className="space-y-4">
+            <InfoRow label="Full Name" value={entry.ownerName} bold />
+            <InfoRow label="CNIC Number" value={entry.nicNumber || 'Not Provided'} icon={<Hash size={14}/>} />
+            <InfoRow label="Contact No." value={entry.contactNumber} icon={<Phone size={14}/>} link={`tel:${entry.contactNumber}`} />
+            <InfoRow 
+              label="WhatsApp No." 
+              value={entry.whatsappNumber} 
+              icon={<MessageCircle size={14} className="text-[#25D366]"/>} 
+              link={`https://wa.me/${formatWhatsAppNumber(entry.whatsappNumber)}`}
+              linkText="Open Chat"
+            />
+            <InfoRow label="City & Area" value={`${entry.city}`} icon={<MapPin size={14}/>} />
+          </div>
+        </div>
+
+        {/* MIDDLE: DEVICE INFO */}
+        <div className="lg:col-span-4 space-y-6 border-x border-white/5 px-0 lg:px-10">
+          <div className="flex items-center gap-3 text-pak-teal mb-2">
+            <Smartphone size={18} />
+            <h4 className="text-xs font-black uppercase tracking-[0.2em]">Device Details</h4>
+          </div>
+          <div className="space-y-4">
+            <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+              <div className="text-white/40 text-[10px] font-black uppercase tracking-widest mb-1">Make & Model</div>
+              <div className="text-2xl font-black text-white tracking-tighter uppercase">{entry.brand} {entry.model}</div>
+              <div className="text-pak-teal text-xs font-bold mt-1 uppercase tracking-widest">{entry.color || 'No Color Specified'}</div>
+            </div>
+            <InfoRow label="IMEI Number" value={entry.imei} highlight />
+            <InfoRow label="Loss Location" value={entry.lossLocation} />
+            <InfoRow label="Loss Date/Time" value={formatDate(entry.lossDateTime)} />
+          </div>
+        </div>
+
+        {/* RIGHT: VISUAL VERIFICATION */}
+        <div className="lg:col-span-4 space-y-6">
+          <div className="flex items-center gap-3 text-pak-teal mb-2">
+            <Eye size={18} />
+            <h4 className="text-xs font-black uppercase tracking-[0.2em]">Visual Evidence</h4>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <MediaBlock label="Owner Selfie" src={entry.selfieImageUrl} circular />
+            <MediaBlock label="ID/Box Proof" src={entry.proofImageUrl} />
+          </div>
+          {entry.proofType && (
+            <div className="pt-4 border-t border-white/5">
+              <div className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Proof Metadata</div>
+              <div className="flex items-center gap-2">
+                <FileText size={14} className="text-pak-teal" />
+                <span className="text-xs text-white font-bold uppercase">{entry.proofType.replace('_', ' ')} Uploaded</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* CARD ACTIONS */}
+      <div className="px-8 py-6 bg-white/[0.03] border-t border-white/5 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <span className="text-[10px] font-black uppercase tracking-widest text-white/20">Admin Actions:</span>
+          <div className="flex items-center gap-3">
+            <ActionButton 
+              label="Verify Entry" 
+              icon={<CheckCircle2 size={18}/>} 
+              active={entry.status === 'verified'}
+              color="text-pak-teal" 
+              bg="bg-pak-teal/10 hover:bg-pak-teal hover:text-navy-900"
+              onClick={() => onStatusUpdate(entry.id, 'verified')}
+            />
+            <ActionButton 
+              label="Flag/Hide" 
+              icon={<AlertTriangle size={18}/>} 
+              active={entry.status === 'flagged'}
+              color="text-pak-orange" 
+              bg="bg-pak-orange/10 hover:bg-pak-orange hover:text-navy-900"
+              onClick={() => onStatusUpdate(entry.id, 'flagged')}
+            />
+          </div>
+        </div>
+        
+        <button 
+          onClick={() => onDelete(entry.id)}
+          className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-pak-red/10 text-pak-red hover:bg-pak-red hover:text-white transition-all text-xs font-black uppercase tracking-widest border border-pak-red/20"
+        >
+          <Trash2 size={18} />
+          Delete Permanently
+        </button>
+      </div>
+    </motion.div>
+  );
+};
+
+const InfoRow = ({ label, value, icon, link, linkText, bold, highlight }: any) => (
+  <div className="group flex flex-col">
+    <span className="text-[10px] font-black uppercase tracking-[0.1em] text-white/30 truncate">{label}</span>
+    <div className="flex items-center gap-3 mt-0.5">
+      {icon && <span className="opacity-50 group-hover:opacity-100 transition-opacity">{icon}</span>}
+      <span className={`${bold ? 'font-black text-lg' : 'font-bold'} ${highlight ? 'text-pak-teal font-mono bg-pak-teal/5 px-2 py-0.5 rounded border border-pak-teal/20' : 'text-white'}`}>
+        {value || '---'}
+      </span>
+      {link && (
+        <a 
+          href={link} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="p-1.5 rounded-lg bg-white/5 hover:bg-pak-teal/20 text-pak-teal transition-all flex items-center gap-1.5"
+        >
+          <ExternalLink size={12} />
+          {linkText && <span className="text-[9px] font-black uppercase tracking-widest">{linkText}</span>}
+        </a>
+      )}
     </div>
-    <div className="text-4xl font-black text-white mb-2 tracking-tighter">{value}</div>
-    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">{title}</div>
-    {/* Subtle design accent */}
-    <div className="absolute -right-4 -bottom-4 text-white/[0.02] rotate-12">
-      {React.cloneElement(icon, { size: 120 })}
-    </div>
-  </motion.div>
+  </div>
 );
 
-const Thumbnail = ({ label, src, circular }: any) => {
-  const isLoading = !src || src === 'uploading';
+const MediaBlock = ({ label, src, circular }: any) => {
+  const isMissing = !src || src === 'uploading' || src === '';
   
   return (
-    <div className="flex flex-col items-center gap-1.5 group">
-      <div className={`w-12 h-12 ${circular ? 'rounded-full' : 'rounded-xl'} overflow-hidden border-2 border-white/10 bg-white/5 transition-all group-hover:border-pak-teal shadow-lg`}>
-        {isLoading ? (
-          <div className="w-full h-full flex items-center justify-center">
-            <Loader2 className="animate-spin text-white/20" size={14} />
+    <div className="space-y-3">
+      <div className={`relative aspect-square w-full rounded-2xl border-2 border-white/5 bg-white/5 overflow-hidden group/img ${circular ? 'rounded-full' : ''}`}>
+        {isMissing ? (
+          <div className="w-full h-full flex flex-col items-center justify-center opacity-20 text-center p-4">
+            <Smartphone size={32} />
+            <span className="text-[9px] font-bold uppercase mt-2">No Image</span>
           </div>
         ) : (
-          <a href={src} target="_blank" rel="noreferrer">
+          <>
             <img 
-              src={src + (circular ? '?w=100&q=auto&f=auto' : '?w=400&q=auto&f=auto')} 
+              src={src + (circular ? '?w=200&q=auto' : '?w=600&q=auto')} 
               alt={label} 
-              loading="lazy"
-              className="w-full h-full object-cover transition-transform group-hover:scale-110" 
+              className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-110" 
             />
-          </a>
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-4">
+              <a href={src} target="_blank" rel="noreferrer" className="p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all">
+                <Eye size={20} />
+              </a>
+              <a href={src} download className="p-3 bg-pak-teal/20 rounded-full text-pak-teal hover:bg-pak-teal transition-all">
+                <Download size={20} />
+              </a>
+            </div>
+          </>
         )}
       </div>
-      <span className="text-[8px] font-black uppercase tracking-widest text-white/20 group-hover:text-pak-teal transition-colors">
-        {label}
-      </span>
+      <div className="text-center">
+        <span className="text-[9px] font-black uppercase tracking-widest text-white/30">{label}</span>
+        {!isMissing && (
+          <div className="mt-1">
+            <a href={src} target="_blank" rel="noreferrer" className="text-pak-teal text-[8px] font-bold uppercase hover:underline flex items-center justify-center gap-1">
+              <Download size={10} /> Full Size View
+            </a>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
 
-const ActionButton = ({ onClick, icon, color, bg, title }: any) => (
+const StatCard = ({ title, value, icon, color, bg, delay }: any) => (
+  <motion.div 
+    initial={{ opacity: 0, scale: 0.9 }}
+    animate={{ opacity: 1, scale: 1 }}
+    transition={{ delay }}
+    className={`p-8 rounded-[2.5rem] border border-white/5 shadow-2xl relative overflow-hidden group ${bg}`}
+  >
+    <div className={`p-4 rounded-2xl w-fit mb-6 ${color} border border-white/5 bg-black/20 group-hover:scale-110 transition-transform`}>
+      {React.cloneElement(icon, { size: 28 })}
+    </div>
+    <div className="text-5xl font-black text-white mb-2 tracking-tighter tabular-nums">{value}</div>
+    <div className="text-[11px] font-black uppercase tracking-[0.3em] text-white/40">{title}</div>
+    {/* Background Pattern */}
+    <div className="absolute -right-4 -bottom-4 text-white/[0.03] rotate-12 transition-transform group-hover:rotate-0 duration-700">
+      {React.cloneElement(icon, { size: 140 })}
+    </div>
+  </motion.div>
+);
+
+const ActionButton = ({ label, icon, active, color, bg, onClick }: any) => (
   <button 
     onClick={onClick}
-    title={title}
-    className={`p-3 rounded-xl transition-all active:scale-90 ${bg} ${color} group`}
+    disabled={active}
+    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all text-[10px] font-black uppercase tracking-[0.15em] border ${
+      active ? 'bg-white/10 text-white/30 border-white/10 cursor-not-allowed scale-95' : `border-transparent ${bg} ${color}`
+    }`}
   >
-    <div className="transition-transform group-hover:scale-110">
-      {icon}
-    </div>
+    {icon}
+    {label}
   </button>
 );
 

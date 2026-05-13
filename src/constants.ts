@@ -42,3 +42,26 @@ export const validateNIC = (nic: string) => {
 export const validateIMEI = (imei: string) => {
   return /^\d{15}$/.test(imei);
 };
+
+export const formatWhatsAppNumber = (number: string) => {
+  if (!number) return '';
+  
+  // Remove all spaces, dashes, brackets
+  let cleaned = number.replace(/[\s\-\(\)]/g, '');
+  
+  // Remove leading + if exists
+  cleaned = cleaned.replace(/^\+/, '');
+  
+  // If starts with 03 → replace 0 with 92
+  if (cleaned.startsWith('03')) {
+    cleaned = '92' + cleaned.slice(1);
+  }
+  
+  // If starts with 3 → add 92
+  if (cleaned.startsWith('3')) {
+    cleaned = '92' + cleaned;
+  }
+  
+  // If already starts with 92 → keep as is
+  return cleaned;
+};

@@ -9,8 +9,10 @@ import { db } from '../firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { AnimatePresence } from 'motion/react';
+import { formatWhatsAppNumber } from '../constants';
 
 const shareOnWhatsApp = (entry: any) => {
+  const waNum = formatWhatsAppNumber(entry.whatsappNumber);
   const message = 
     `🚨 *Chori Shuda Phone Alert — PakIMEI*\n\n` +
     `📱 Phone: ${entry.brand} ${entry.model || 'Hidden'}\n` +
@@ -18,7 +20,7 @@ const shareOnWhatsApp = (entry: any) => {
     `📍 City: ${entry.city || 'N/A'}\n` +
     `📅 Tarikh: ${entry.lossDateTime || 'N/A'}\n\n` +
     `Agar ye phone unlock hone aaye to ` +
-    `owner se rabta karein.\n\n` +
+    `owner se rabta karein: +${waNum}\n\n` +
     `🔍 IMEI Check karein:\n` +
     `https://${window.location.hostname}`;
 
@@ -77,10 +79,37 @@ const RestrictedResultCard: React.FC<{ result: any; onLogin: () => void }> = ({ 
                     {result.proofType === 'purchase_slip' && "🧾 Purchase Slip"}
                   </span>
                   
-                  {result.proofImageUrl === 'uploading' && (
-                    <div className="flex items-center gap-2 text-white/30 text-[10px] font-bold italic">
+                  {result.proofImageUrl && result.proofImageUrl !== 'uploading' && result.proofImageUrl !== null ? (
+                    <div className="flex flex-col gap-2">
+                       <img 
+                        src={result.proofImageUrl + '?w=400&q=auto&f=auto'} 
+                        alt="Proof"
+                        loading="lazy"
+                        style={{
+                          width: 120,
+                          height: 120,
+                          objectFit: 'cover',
+                          borderRadius: 8
+                        }}
+                        className="border border-white/10 shadow-lg"
+                      />
+                      <a 
+                        href={result.proofImageUrl} 
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-pak-teal/15 border border-pak-teal/40 text-pak-teal px-3 py-1.5 rounded-lg text-[10px] font-bold text-center hover:bg-pak-teal/25 transition-all"
+                      >
+                        📥 Proof Download Karein
+                      </a>
+                    </div>
+                  ) : result.proofImageUrl === 'uploading' ? (
+                    <div className="flex items-center gap-2 text-pak-orange text-[10px] font-bold italic">
                       <Loader2 size={10} className="animate-spin" />
-                      ⏳ Proof upload ho rahi hai...
+                      ⏳ Proof abhi available nahi
+                    </div>
+                  ) : (
+                    <div className="text-white/40 text-[10px] font-bold italic">
+                      📎 Koi proof upload nahi ki gayi
                     </div>
                   )}
                 </div>
@@ -382,13 +411,18 @@ const Search: React.FC = () => {
                             {result.proofType === 'purchase_slip' && "🧾 Purchase Slip"}
                           </span>
                           
-                          {result.proofImageUrl && result.proofImageUrl !== 'uploading' && (
+                          {result.proofImageUrl && result.proofImageUrl !== 'uploading' && result.proofImageUrl !== null ? (
                             <div className="flex flex-col gap-3">
                               <img 
                                 src={result.proofImageUrl + '?w=400&q=auto&f=auto'} 
                                 alt="Proof"
                                 loading="lazy"
-                                style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 12 }}
+                                style={{
+                                  width: 120,
+                                  height: 120,
+                                  objectFit: 'cover',
+                                  borderRadius: 8
+                                }}
                                 className="border border-white/10 shadow-xl"
                               />
                               <a 
@@ -409,15 +443,17 @@ const Search: React.FC = () => {
                                 }}
                                 className="hover:bg-pak-teal/25 transition-all text-center uppercase tracking-widest"
                               >
-                                📥 Proof Download
+                                📥 Proof Download Karein
                               </a>
                             </div>
-                          )}
-                          
-                          {result.proofImageUrl === 'uploading' && (
-                            <div className="flex items-center gap-2 text-white/40 text-xs font-black uppercase tracking-widest italic animate-pulse">
+                          ) : result.proofImageUrl === 'uploading' ? (
+                            <div className="flex items-center gap-2 text-pak-orange text-xs font-black uppercase tracking-widest italic animate-pulse">
                               <Loader2 size={16} className="animate-spin" />
-                              ⏳ Proof upload ho rahi hai...
+                              ⏳ Proof abhi available nahi
+                            </div>
+                          ) : (
+                            <div className="text-white/40 text-xs font-black uppercase tracking-widest italic">
+                              📎 Koi proof upload nahi ki gayi
                             </div>
                           )}
                         </div>
@@ -441,7 +477,7 @@ const Search: React.FC = () => {
 
                 <div className="mt-8 flex flex-col sm:flex-row gap-4">
                    <a 
-                    href={`https://wa.me/${result.whatsappNumber.replace(/[^0-9]/g, '')}`}
+                    href={`https://wa.me/${formatWhatsAppNumber(result.whatsappNumber)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex-1 flex items-center justify-center gap-3 bg-[#25D366] text-white py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-[#25D366]/20"

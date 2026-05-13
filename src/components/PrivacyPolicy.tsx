@@ -37,7 +37,7 @@ const PrivacyPolicy: React.FC = () => {
               <div>
                 <h3 className="text-white font-bold text-lg mb-2">Data We Collect</h3>
                 <ul className="list-disc pl-5 space-y-2">
-                  <li>Personal details: Name, NIC number, contact number.</li>
+                  <li>Personal details: Name, CNIC Number, contact number.</li>
                   <li>Device information: IMEI number, phone brand, model, color.</li>
                   <li>Authentication: Google Login details (for verification only).</li>
                   <li>Proof documents: Images of FIR, Mobile Box, or Purchase Slips.</li>
@@ -52,7 +52,7 @@ const PrivacyPolicy: React.FC = () => {
 
               <div>
                 <h3 className="text-white font-bold text-lg mb-2">Data Sharing & Security</h3>
-                <p>We NEVER sell your data to third parties. Access to sensitive information (like NIC or full contact details) is strictly restricted to authenticated users. We use industry-standard security measures to protect your information.</p>
+                <p>We NEVER sell your data to third parties. Access to sensitive information (like CNIC or full contact details) is strictly restricted to authenticated users. We use industry-standard security measures to protect your information.</p>
               </div>
 
               <div>
@@ -78,7 +78,7 @@ const PrivacyPolicy: React.FC = () => {
               <div>
                 <h3 className="text-white font-bold text-lg mb-2">Data Jo Hum Collect Karte Hain</h3>
                 <ul className="list-disc pl-5 space-y-2">
-                  <li>Zati tafseelat: Naam, NIC number, contact number.</li>
+                  <li>Zati tafseelat: Naam, CNIC Number, contact number.</li>
                   <li>Mobile ki maloomat: IMEI number, brand, model, rang.</li>
                   <li>Authentication: Google Login maloomat (sirf verification ke liye).</li>
                   <li>Saboot (Proof): FIR ki copy, Mobile Box ki photo, ya Purchase Slip.</li>
@@ -93,7 +93,7 @@ const PrivacyPolicy: React.FC = () => {
 
               <div>
                 <h3 className="text-white font-bold text-lg mb-2">Security Aur Sharing</h3>
-                <p>Hum aapka data kabhi bhi kisi teesray fariq (third party) ko nahi bechtay. Aapki sensitive maloomat (jaise NIC) sirf login shuda users hi dekh sakte hain.</p>
+                <p>Hum aapka data kabhi bhi kisi teesray fariq (third party) ko nahi bechtay. Aapki sensitive maloomat (jaise CNIC) sirf login shuda users hi dekh sakte hain.</p>
               </div>
 
               <div>

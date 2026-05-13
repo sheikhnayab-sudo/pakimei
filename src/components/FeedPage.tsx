@@ -15,6 +15,8 @@ import {
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 
+import { formatWhatsAppNumber } from '../constants';
+
 // Cache for phones to show instantly on navigation
 const phonesCache = {
   data: [] as Report[],
@@ -134,13 +136,19 @@ const PhoneCard = memo(({
                 {report.proofType === 'purchase_slip' && "🧾 Purchase Slip"}
               </span>
               
-              {currentUser && report.proofImageUrl && report.proofImageUrl !== 'uploading' && (
+              {currentUser && report.proofImageUrl && report.proofImageUrl !== 'uploading' && report.proofImageUrl !== null ? (
                 <div className="flex flex-col gap-2">
                   <img 
                     src={report.proofImageUrl + '?w=400&q=auto&f=auto'} 
                     alt="Proof"
                     loading="lazy"
-                    className="w-[100px] h-[100px] object-cover rounded-lg border border-white/10 shadow-lg"
+                    className="w-[121px] h-[121px] object-cover rounded-lg border border-white/10 shadow-lg"
+                    style={{
+                      width: 120,
+                      height: 120,
+                      objectFit: 'cover',
+                      borderRadius: 8
+                    }}
                   />
                   <a 
                     href={report.proofImageUrl} 
@@ -149,15 +157,17 @@ const PhoneCard = memo(({
                     download
                     className="bg-pak-teal/15 border border-pak-teal/40 text-pak-teal px-3 py-1.5 rounded-lg text-[10px] font-bold text-center hover:bg-pak-teal/25 transition-all flex items-center justify-center gap-1"
                   >
-                    📥 Proof Download
+                    📥 Proof Download Karein
                   </a>
                 </div>
-              )}
-              
-              {currentUser && report.proofImageUrl === 'uploading' && (
-                <div className="flex items-center gap-2 text-white/40 text-[10px] font-bold italic">
+              ) : currentUser && report.proofImageUrl === 'uploading' ? (
+                <div className="flex items-center gap-2 text-pak-orange text-[10px] font-bold italic">
                   <Loader2 size={12} className="animate-spin" />
-                  ⏳ Proof upload ho rahi hai...
+                  ⏳ Proof abhi available nahi
+                </div>
+              ) : (
+                <div className="text-white/40 text-[10px] font-bold italic">
+                  📎 Koi proof upload nahi ki gayi
                 </div>
               )}
             </div>
@@ -227,7 +237,7 @@ const PhoneCard = memo(({
       {currentUser ? (
         <div className="grid grid-cols-2 gap-3">
           <a 
-            href={`https://wa.me/${report.whatsappNumber.replace(/[^0-9]/g, '')}`}
+            href={`https://wa.me/${formatWhatsAppNumber(report.whatsappNumber)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-center gap-2 bg-[#25D366]/20 text-[#25D366] py-3 rounded-xl text-sm font-bold border border-[#25D366]/30 hover:bg-[#25D366]/30 transition-all"
@@ -457,6 +467,7 @@ const FeedPage: React.FC = () => {
   };
 
   const shareOnWhatsApp = (entry: Report) => {
+    const waNum = formatWhatsAppNumber(entry.whatsappNumber);
     const message = 
       `🚨 *Chori Shuda Phone Alert — PakIMEI*\n\n` +
       `📱 Phone: ${entry.brand} ${entry.model}\n` +
@@ -464,7 +475,7 @@ const FeedPage: React.FC = () => {
       `📍 City: ${entry.city || 'N/A'}\n` +
       `📅 Tarikh: ${entry.lossDateTime || 'N/A'}\n\n` +
       `Agar ye phone unlock hone aaye to ` +
-      `owner se rabta karein.\n\n` +
+      `owner se rabta karein: +${waNum}\n\n` +
       `🔍 IMEI Check karein:\n` +
       `https://${window.location.hostname}`;
 
@@ -745,7 +756,7 @@ const FeedPage: React.FC = () => {
                     <input disabled value={editingEntry.imei} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white/40 cursor-not-allowed" />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1 block">Owner NIC</label>
+                    <label className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1 block">Owner CNIC</label>
                     <input disabled value={(editingEntry as any).nicNumber || '●●●●●●●●'} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white/40 cursor-not-allowed" />
                   </div>
                 </div>

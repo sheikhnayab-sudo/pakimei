@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
-import { PAKISTANI_CITIES, PHONE_BRANDS, formatNIC, validateNIC, validateIMEI } from '../constants';
+import { PAKISTANI_CITIES, PHONE_BRANDS, formatNIC, validateNIC, validateIMEI, formatWhatsAppNumber } from '../constants';
 import { sendConfirmationEmail } from '../services/emailService';
 import { uploadToCloudinary } from '../services/cloudinaryService';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
@@ -416,7 +416,7 @@ const Register: React.FC = () => {
         return false;
       }
 
-      // Check NIC (Max 2)
+      // Check CNIC (Max 2)
       const nicQuery = query(collection(db, phonesPath), where('nicNumber', '==', formData.nicNumber));
       const nicSnap = await getDocs(nicQuery);
       if (nicSnap.size >= 2) {
@@ -512,7 +512,7 @@ const Register: React.FC = () => {
       return;
     }
 
-    // Validations (IMEI, NIC, etc.)
+    // Validations (IMEI, CNIC, etc.)
     if (formData.ownerName.trim().length < 3) {
       toast.error(t('reg_placeholder_name'));
       return;
@@ -582,14 +582,43 @@ const Register: React.FC = () => {
         ? 'police_report' 
         : (proofOption === 'box' ? 'box_image' : 'purchase_slip');
 
-      // PHASE 1: Save entry immediately
+      let finalProofUrl = '';
+      let finalSelfieUrl = '';
+
+      // PHASE 1: Upload Images
+      toast.loading("Tasveerein upload ho rahi hain... 📤", { id: statusToast });
+      
+      // Upload Proof if exists
+      if (selectedFile) {
+        let uploadBlob: Blob | File = selectedFile;
+        if (selectedFile.type.startsWith('image/')) {
+          try {
+            uploadBlob = await compressImage(selectedFile);
+          } catch (e) {
+            console.error("Compression failed, using original:", e);
+          }
+        }
+
+        finalProofUrl = await uploadToCloudinary(uploadBlob as File, (p) => {
+          toast.loading(`📤 Proof image upload ho rahi hai... ${p}%`, { id: statusToast });
+        });
+      }
+
+      // Upload Selfie (Mandatory)
+      if (selfieFile) {
+        finalSelfieUrl = await uploadToCloudinary(selfieFile, (p) => {
+          toast.loading(`📸 Selfie upload ho rahi hai... ${p}%`, { id: statusToast });
+        });
+      }
+
+      // PHASE 2: Save to Firestore with real URLs
       toast.loading("Entry save ho rahi hai... 💾", { id: statusToast });
       const reportData = {
         ...formData,
-        city: formData.address.city, // Flatten city for easier querying and Feed display
+        city: formData.address.city,
         proofType: finalProofType,
-        proofImageUrl: selectedFile ? 'uploading' : '',
-        selfieImageUrl: 'uploading',
+        proofImageUrl: finalProofUrl,
+        selfieImageUrl: finalSelfieUrl,
         userId: currentUser.uid,
         userEmail: currentUser.email,
         status: 'pending' as const,
@@ -600,16 +629,19 @@ const Register: React.FC = () => {
       const docRef = await addDoc(collection(db, 'phones'), reportData);
       const refId = docRef.id.slice(0, 8).toUpperCase();
 
-      // Show success screen immediately
-      toast.success("✅ Entry save ho gayi!", { id: statusToast });
+      // Update local history
+      const submissions = JSON.parse(localStorage.getItem('pakimei_submissions') || '[]');
+      submissions.push(Date.now());
+      localStorage.setItem('pakimei_submissions', JSON.stringify(submissions));
+
+      // Show success screen
+      toast.success("✅ Entry kamyabi se save ho gayi!", { id: statusToast });
       setSuccessData({ ...formData, refId });
       setShowWAModal(true);
       setLoading(false);
       isSubmitting.current = false;
 
-      // Reset form fields but keep selectedFile for background upload
-      const currentSelectedFile = selectedFile;
-      const currentSelfieFile = selfieFile;
+      // Reset form fields
       setFormData({
         ownerName: '',
         nicNumber: '',
@@ -637,72 +669,22 @@ const Register: React.FC = () => {
       setUploadSuccess(false);
       setProofOption('');
 
-      // PHASE 2: Background Upload & Finalization
-      (async () => {
-        const bgToast = toast.loading("📤 Data upload ho raha hai...");
-        try {
-          let finalProofUrl = '';
-          let finalSelfieUrl = '';
-
-          // Upload Proof if exists
-          if (currentSelectedFile) {
-            let uploadBlob: Blob | File = currentSelectedFile;
-            if (currentSelectedFile.type.startsWith('image/')) {
-              try {
-                uploadBlob = await compressImage(currentSelectedFile);
-              } catch (e) {
-                console.error("Compression failed, using original:", e);
-              }
-            }
-
-            finalProofUrl = await uploadToCloudinary(uploadBlob as File, (p) => {
-              toast.loading(`📤 Proof image upload ho rahi hai... ${p}%`, { id: bgToast });
-            });
-          }
-
-          // Upload Selfie (Mandatory)
-          if (currentSelfieFile) {
-            finalSelfieUrl = await uploadToCloudinary(currentSelfieFile, (p) => {
-              toast.loading(`📸 Selfie upload ho rahi hai... ${p}%`, { id: bgToast });
-            });
-          }
-
-          // Update Firestore with real URLs
-          await updateDoc(doc(db, 'phones', docRef.id), {
-            proofImageUrl: finalProofUrl,
-            selfieImageUrl: finalSelfieUrl
-          });
-
-          // Send Email in background
-          sendConfirmationEmail({
-            userEmail: currentUser.email || '',
-            ownerName: reportData.ownerName,
-            brand: reportData.brand,
-            model: reportData.model,
-            imei: reportData.imei,
-            address: reportData.address,
-            reportType: reportData.reportType,
-            refId,
-            whatsappNumber: reportData.whatsappNumber
-          }).then(() => {
-            toast.success('Confirmation email bhej diya! ✉️');
-          }).catch((err) => {
-            console.error("Background email failed:", err);
-            toast.error('Email nahi gaya, lekin entry save ho gayi ✅');
-          });
-
-          toast.success("✅ Sab kuch complete!", { id: bgToast });
-          
-          // Update local history
-          const submissions = JSON.parse(localStorage.getItem('pakimei_submissions') || '[]');
-          submissions.push(Date.now());
-          localStorage.setItem('pakimei_submissions', JSON.stringify(submissions));
-
-        } catch (error) {
-          console.error("Background upload failed:", error);
-          toast.error("⚠️ Image upload fail ho gayi, lekin entry save hai.", { id: bgToast });
-        }
-      })();
+      // Send Email
+      sendConfirmationEmail({
+        userEmail: currentUser.email || '',
+        ownerName: reportData.ownerName,
+        brand: reportData.brand,
+        model: reportData.model,
+        imei: reportData.imei,
+        address: reportData.address,
+        reportType: reportData.reportType,
+        refId,
+        whatsappNumber: reportData.whatsappNumber
+      }).then(() => {
+        toast.success('Confirmation email bhej diya! ✉️');
+      }).catch((err) => {
+        console.error("Email failed:", err);
+      });
 
     } catch (error: any) {
       console.error("Submission error:", error);
@@ -715,8 +697,8 @@ const Register: React.FC = () => {
   const sendWhatsAppConfirmation = () => {
     if (!successData) return;
     
-    // Convert 03xx to 923xx
-    const phone = '92' + successData.whatsappNumber.slice(1);
+    // Use helper for correct WhatsApp format
+    const phone = formatWhatsAppNumber(successData.whatsappNumber);
     const message = t('wa_message_template')
       .replace('{name}', successData.ownerName)
       .replace('{phone}', `${successData.brand} ${successData.model}`)
