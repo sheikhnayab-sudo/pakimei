@@ -120,52 +120,89 @@ const AdminPage: React.FC = () => {
   const moveToTrash = async (entry: any) => {
     if (!window.confirm('🚩 MOVE TO TRASH: Are you sure? You can restore it later.')) return;
     const t = toast.loading("Moving to trash...");
+    console.log("Admin Action: Moving entry to trash", { entryId: entry.id, entryData: entry });
+    
     try {
+      // Remove id from the data object as it will be the document name
+      const { id, ...cleanData } = entry;
+      
       const trashDoc = {
-        ...entry,
+        ...cleanData,
         deletedAt: serverTimestamp(),
         deletedBy: currentUser.email,
-        originalStatus: entry.status
+        originalStatus: entry.status || 'pending'
       };
       
+      console.log("Attempting to write to trash collection...");
       await setDoc(doc(db, 'trash', entry.id), trashDoc);
+      console.log("Trash document created successfully.");
+      
+      console.log("Attempting to delete from phones collection...");
       await deleteDoc(doc(db, 'phones', entry.id));
+      console.log("Source document deleted successfully.");
       
       toast.success('Entry moved to trash 🗑️', { id: t });
-    } catch (err) {
-      console.error("Trash error:", err);
-      toast.error('Failed to move to trash.', { id: t });
+    } catch (err: any) {
+      console.error("CRITICAL: Move to Trash Failed", {
+        error: err.message,
+        code: err.code,
+        entryId: entry.id,
+        user: currentUser.email
+      });
+      
+      let errorMsg = 'Failed to move to trash.';
+      if (err.code === 'permission-denied') {
+        errorMsg = 'Permission Denied: Check firewall/rules.';
+      }
+      toast.error(`${errorMsg} Details in console.`, { id: t });
     }
   };
 
   const restoreFromTrash = async (entry: any) => {
     const t = toast.loading("Restoring entry...");
+    console.log("Admin Action: Restoring entry", { entryId: entry.id });
+    
     try {
-      const { deletedAt, deletedBy, originalStatus, ...rest } = entry;
+      const { id, deletedAt, deletedBy, originalStatus, ...cleanData } = entry;
       const restoredData = {
-        ...rest,
-        updatedAt: serverTimestamp()
+        ...cleanData,
+        updatedAt: serverTimestamp(),
+        status: originalStatus || 'pending'
       };
       
+      console.log("Attempting to restore to phones collection...");
       await setDoc(doc(db, 'phones', entry.id), restoredData);
+      
+      console.log("Attempting to remove from trash collection...");
       await deleteDoc(doc(db, 'trash', entry.id));
       
       toast.success('Entry restored successfully ✅', { id: t });
-    } catch (err) {
-      console.error("Restore error:", err);
-      toast.error('Failed to restore entry.', { id: t });
+    } catch (err: any) {
+      console.error("CRITICAL: Restore Failed", {
+        error: err.message,
+        code: err.code,
+        entryId: entry.id
+      });
+      toast.error('Failed to restore entry. Details in console.', { id: t });
     }
   };
 
   const permanentDelete = async (id: string) => {
     if (!window.confirm('🚨 PERMANENT DELETE: This cannot be undone! Are you sure?')) return;
     const t = toast.loading("Deleting permanently...");
+    console.log("Admin Action: Permanent Delete", { entryId: id });
+    
     try {
       await deleteDoc(doc(db, 'trash', id));
+      console.log("Document deleted permanently from trash.");
       toast.success('Deleted permanently 💀', { id: t });
-    } catch (err) {
-      console.error("Permanent delete error:", err);
-      toast.error('Failed to delete permanently.', { id: t });
+    } catch (err: any) {
+      console.error("CRITICAL: Permanent Delete Failed", {
+        error: err.message,
+        code: err.code,
+        entryId: id
+      });
+      toast.error('Failed to delete permanently. Details in console.', { id: t });
     }
   };
 
