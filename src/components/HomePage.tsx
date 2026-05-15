@@ -1,13 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../context/LanguageContext';
-import { Search, ShieldCheck, AlertCircle, Phone, Smartphone, History, ChevronRight } from 'lucide-react';
+import { Search, ShieldCheck, AlertCircle, Phone, Smartphone, History, ChevronRight, CheckCircle2, ListFilter } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
+import { db } from '../firebase';
+import { collection, query, onSnapshot } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 
 const Home: React.FC = () => {
   const { t } = useLanguage();
   const [imei, setImei] = useState('');
   const navigate = useNavigate();
+  const [recoveryCount, setRecoveryCount] = useState(0);
+  const [totalRegistered, setTotalRegistered] = useState(0);
+
+  useEffect(() => {
+    // Count recovered phones
+    const qRecoveries = query(collection(db, 'recoveries'));
+    const unsubscribeRecoveries = onSnapshot(qRecoveries, (snap) => {
+      setRecoveryCount(snap.size);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'recoveries');
+    });
+    
+    // Count total registered
+    const qRegistered = query(collection(db, 'phones'));
+    const unsubscribeRegistered = onSnapshot(qRegistered, (snap) => {
+      setTotalRegistered(snap.size);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'phones');
+    });
+
+    return () => {
+      unsubscribeRecoveries();
+      unsubscribeRegistered();
+    };
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,6 +114,47 @@ const Home: React.FC = () => {
                 <span>Instant Result</span>
                 <span className="opacity-20">|</span>
                 <span>Technician Verified</span>
+              </div>
+
+              {/* LIVE STATS */}
+              <div className="mt-16 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="flex items-center gap-6 glass p-8 rounded-3xl border border-pak-teal/30 hover:bg-pak-teal/5 transition-all text-left group"
+                >
+                  <div className="p-5 rounded-2xl bg-pak-teal/10 text-pak-teal border border-pak-teal/20 group-hover:scale-110 transition-all">
+                    <CheckCircle2 size={40} />
+                  </div>
+                  <div>
+                    <div className="font-display text-5xl font-black text-pak-teal tracking-tighter leading-none mb-1">
+                      {recoveryCount}
+                    </div>
+                    <div className="text-white/60 text-sm font-bold uppercase tracking-widest leading-tight">
+                      Phones Owners Ko<br/>Wapas Mile
+                    </div>
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="flex items-center gap-6 glass p-8 rounded-3xl border border-white/10 hover:bg-white/5 transition-all text-left group"
+                >
+                  <div className="p-5 rounded-2xl bg-white/5 text-white/40 border border-white/10 group-hover:scale-110 transition-all">
+                    <ListFilter size={40} />
+                  </div>
+                  <div>
+                    <div className="font-display text-5xl font-black text-white tracking-tighter leading-none mb-1">
+                      {totalRegistered}
+                    </div>
+                    <div className="text-white/40 text-sm font-bold uppercase tracking-widest leading-tight">
+                      Total Devices<br/>Registered
+                    </div>
+                  </div>
+                </motion.div>
               </div>
             </motion.div>
           </div>

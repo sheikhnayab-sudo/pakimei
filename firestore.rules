@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Default deny all
+    // Default deny all (MUST be at top)
     match /{document=**} {
       allow read, write: if false;
     }
@@ -35,14 +35,13 @@ service cloud.firestore {
     }
 
     function isValidReport(data) {
-      let requiredKeys = [
-        'ownerName', 'nicNumber', 'address', 'contactNumber', 'whatsappNumber', 
-        'lossDateTime', 'lossLocation', 'imei', 'imei2', 'brand', 'model', 'color', 
-        'reportType', 'description', 'status', 'createdAt', 'userId', 'userEmail', 
-        'verified', 'hasPoliceReport', 'proofType', 'proofImageUrl', 'selfieImageUrl', 'city'
-      ];
-      return data.keys().hasAll(requiredKeys) &&
-             data.keys().size() == requiredKeys.size() &&
+      return data.keys().hasAll([
+               'ownerName', 'nicNumber', 'address', 'contactNumber', 'whatsappNumber', 
+               'lossDateTime', 'lossLocation', 'imei', 'imei2', 'brand', 'model', 'color', 
+               'reportType', 'description', 'status', 'createdAt', 'userId', 'userEmail', 
+               'verified', 'hasPoliceReport', 'proofType', 'proofImageUrl', 'selfieImageUrl', 'city'
+             ]) &&
+             data.keys().size() == 24 &&
              data.ownerName is string && data.ownerName.size() >= 3 && data.ownerName.size() <= 100 &&
              data.nicNumber is string && data.nicNumber.matches('^[0-9]{5}-[0-9]{7}-[0-9]{1}$') &&
              data.address is map &&
@@ -62,10 +61,34 @@ service cloud.firestore {
              data.proofType in ['police_report', 'box_image', 'purchase_slip'] &&
              data.proofImageUrl is string && (data.proofImageUrl == "" || data.proofImageUrl.size() <= 1024) &&
              data.selfieImageUrl is string && (data.selfieImageUrl == "" || data.selfieImageUrl.size() <= 1024) &&
-             data.status in ['pending', 'verified', 'flagged'] &&
+             data.status in ['pending', 'verified', 'flagged', 'recovered'] &&
              data.verified is bool &&
              data.userId is string && data.userId.size() <= 128 &&
              data.userEmail is string && data.userEmail.size() <= 200;
+    }
+
+    function isValidRecovery(data) {
+      return data.keys().hasAll([
+               'phoneId', 'ownerName', 'brand', 'model', 'city', 'foundBy', 'finderCity', 'recoveryNote', 'recoveredAt'
+             ]) &&
+             data.keys().size() == 9 &&
+             data.phoneId is string &&
+             data.ownerName is string &&
+             data.brand is string &&
+             data.model is string &&
+             data.city is string &&
+             data.foundBy is string &&
+             data.finderCity is string &&
+             data.recoveryNote is string &&
+             data.recoveredAt == request.time;
+    }
+
+    // RECOVERIES COLLECTION
+    match /recoveries/{docId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidRecovery(incoming());
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     // PHONE REGISTRY COLLECTION
@@ -78,13 +101,10 @@ service cloud.firestore {
 
     // TRASH SYSTEM
     match /trash/{docId} {
-      allow read: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow read, write: if isAdmin();
     }
 
-    // SUPPORTING COLLECTIONS (Requested by User)
+    // SUPPORTING COLLECTIONS
     match /reports/{docId} {
       allow read: if true;
       allow create: if isSignedIn();

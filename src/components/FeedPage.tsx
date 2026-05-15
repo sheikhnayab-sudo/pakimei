@@ -14,6 +14,7 @@ import {
   QueryDocumentSnapshot, DocumentData, doc, deleteDoc, addDoc, serverTimestamp
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
+import RecoveryModal from './RecoveryModal';
 
 import { formatWhatsAppNumber } from '../constants';
 
@@ -79,6 +80,7 @@ const PhoneCard = memo(({
   onEdit, 
   onDelete, 
   onReportFake, 
+  onRecovery,
   onShare,
   maskIMEI,
   maskText,
@@ -336,6 +338,20 @@ const PhoneCard = memo(({
             >
               🗑️ Apni Entry Delete Karein
             </button>
+            
+            {report.status !== 'recovered' && (
+              <button
+                onClick={() => onRecovery(report)}
+                className="mt-2 w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all hover:bg-pak-teal/20"
+                style={{
+                  background: 'rgba(46, 196, 182, 0.15)',
+                  border: '1.5px solid rgba(46, 196, 182, 0.5)',
+                  color: '#2ec4b6',
+                }}
+              >
+                ✅ Mujhe Mera Phone Mil Gaya!
+              </button>
+            )}
           </div>
         ) : (
           <button
@@ -393,6 +409,7 @@ const FeedPage: React.FC = () => {
     whatsappNumber: ''
   });
   const [savingEdit, setSavingEdit] = useState(false);
+  const [recoveryEntry, setRecoveryEntry] = useState<Report | null>(null);
   const isRefreshing = useRef(false);
 
   const handleEdit = (report: Report) => {
@@ -507,7 +524,7 @@ const FeedPage: React.FC = () => {
       phonesCache.data = data;
       setLoading(false);
     }, (error) => {
-      console.error("Feed Query Error:", error);
+      handleFirestoreError(error, OperationType.GET, 'phones');
       setLoading(false);
     });
 
@@ -596,6 +613,7 @@ const FeedPage: React.FC = () => {
                 onEdit={handleEdit}
                 onDelete={setDeleteId}
                 onReportFake={setReportFakeId}
+                onRecovery={setRecoveryEntry}
                 onShare={shareOnWhatsApp}
                 maskIMEI={maskIMEI}
                 maskText={maskText}
@@ -848,6 +866,12 @@ const FeedPage: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
+
+      <RecoveryModal 
+        isOpen={!!recoveryEntry}
+        onClose={() => setRecoveryEntry(null)}
+        entry={recoveryEntry}
+      />
     </div>
   );
 };

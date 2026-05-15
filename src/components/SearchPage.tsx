@@ -10,6 +10,7 @@ import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'fire
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { AnimatePresence } from 'motion/react';
 import { formatWhatsAppNumber } from '../constants';
+import RecoveryModal from './RecoveryModal';
 
 const shareOnWhatsApp = (entry: any) => {
   const waNum = formatWhatsAppNumber(entry.whatsappNumber);
@@ -183,6 +184,7 @@ const Search: React.FC = () => {
   const [searched, setSearched] = useState(false);
   const [reportFakeId, setReportFakeId] = useState<string | null>(null);
   const [reportingFake, setReportingFake] = useState(false);
+  const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState(false);
 
   useEffect(() => {
     if (queryParam) {
@@ -501,6 +503,20 @@ const Search: React.FC = () => {
                   </button>
                 )}
 
+                {currentUser && currentUser.uid === result.userId && result.status !== 'recovered' && (
+                  <button
+                    onClick={() => setIsRecoveryModalOpen(true)}
+                    className="mt-4 w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all hover:bg-pak-teal/20"
+                    style={{
+                      background: 'rgba(46, 196, 182, 0.15)',
+                      border: '1.5px solid rgba(46, 196, 182, 0.5)',
+                      color: '#2ec4b6',
+                    }}
+                  >
+                    ✅ Mujhe Mera Phone Mil Gaya!
+                  </button>
+                )}
+
                 <div className="mt-8 rounded-2xl bg-white/5 p-8 text-base leading-relaxed text-white/70 border border-white/10 backdrop-blur-md">
                   <div className="flex items-start gap-4">
                     <AlertTriangle className="flex-shrink-0 text-pak-red drop-shadow-lg" size={28} />
@@ -552,6 +568,14 @@ const Search: React.FC = () => {
           </div>
         )}
       </motion.div>
+
+      {result && (
+        <RecoveryModal 
+          isOpen={isRecoveryModalOpen}
+          onClose={() => setIsRecoveryModalOpen(false)}
+          entry={result}
+        />
+      )}
     </div>
   );
 };

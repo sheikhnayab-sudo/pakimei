@@ -48,6 +48,23 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["phoneId", "reporterId", "reporterEmail", "createdAt"]
+    },
+    "recovery": {
+      "title": "Recovery Success Story",
+      "description": "Information about a successfully recovered mobile phone.",
+      "type": "object",
+      "properties": {
+        "phoneId": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "brand": { "type": "string" },
+        "model": { "type": "string" },
+        "city": { "type": "string" },
+        "foundBy": { "type": "string" },
+        "finderCity": { "type": "string" },
+        "recoveryNote": { "type": "string" },
+        "recoveredAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["phoneId", "ownerName", "brand", "model", "city", "foundBy", "finderCity", "recoveredAt"]
     }
   },
   "firestore": {
@@ -62,6 +79,10 @@
     "flagged": {
       "schema": "report",
       "description": "Entries that have been hidden from public due to suspicion."
+    },
+    "recoveries": {
+      "schema": "recovery",
+      "description": "Public records of successfully recovered phones."
     }
   }
 }
