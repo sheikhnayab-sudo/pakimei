@@ -371,6 +371,37 @@ const Search: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Profile Section */}
+                {result.selfieImageUrl && result.selfieImageUrl !== 'uploading' && (
+                  <div className="mt-8 flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
+                    <img
+                      src={result.selfieImageUrl + '?w=200&q=auto&f=auto'}
+                      loading="lazy"
+                      alt="Owner"
+                      style={{
+                        width: 90,
+                        height: 90,
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                        border: '3px solid rgba(46,196,182,0.6)',
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <div>
+                      <div className="font-display font-bold text-white text-xl">
+                        {result.ownerName}
+                      </div>
+                      <div className="text-sm text-white/50 uppercase tracking-widest mt-1">
+                        📍 {result.city || result.lossLocation}
+                      </div>
+                      <div className="text-xs text-white/40 uppercase tracking-widest mt-1">
+                        🕐 {new Date(result.createdAt?.toDate?.() || Date.now()).toLocaleDateString('en-PK')}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="glass rounded-2xl p-7 border border-white/20">
                     <span className="text-xs font-black uppercase tracking-[0.2em] text-white/40">{t('search_device_info')}</span>
@@ -383,21 +414,6 @@ const Search: React.FC = () => {
                         <p className="text-sm font-mono text-white/50 tracking-widest">{result.imei}</p>
                       </div>
                     </div>
-
-                    {result.selfieImageUrl && result.selfieImageUrl !== 'uploading' && (
-                      <div className="mt-5 pt-5 border-t border-white/10 flex items-center gap-4">
-                        <img 
-                          src={result.selfieImageUrl + '?w=100&q=auto&f=auto'} 
-                          alt="Owner Selfie"
-                          loading="lazy"
-                          className="w-16 h-16 rounded-full object-cover border-4 border-pak-teal shadow-xl"
-                        />
-                        <div>
-                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 block">Verified Owner</span>
-                          <p className="text-white font-bold text-lg leading-tight">{result.ownerName}</p>
-                        </div>
-                      </div>
-                    )}
 
                     {result.proofType && (
                       <div className="mt-5 pt-5 border-t border-white/10">

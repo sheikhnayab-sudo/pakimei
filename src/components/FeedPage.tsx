@@ -114,6 +114,37 @@ const PhoneCard = memo(({
 
     {/* Content */}
     <div className="p-6 flex-1">
+      {/* Profile Section */}
+      {report.selfieImageUrl && report.selfieImageUrl !== 'uploading' && (
+        <div className="flex items-center gap-4 mb-6 p-2 bg-white/5 rounded-xl">
+          <img
+            src={report.selfieImageUrl + '?w=200&q=auto&f=auto'}
+            loading="lazy"
+            alt="Owner"
+            style={{
+              width: 90,
+              height: 90,
+              borderRadius: '50%',
+              objectFit: 'cover',
+              border: '3px solid rgba(46,196,182,0.6)',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+              flexShrink: 0,
+            }}
+          />
+          <div>
+            <div className="font-display font-bold text-white text-base">
+              {currentUser ? report.ownerName : maskText(report.ownerName)}
+            </div>
+            <div className="text-[10px] text-white/50 uppercase tracking-widest mt-1">
+              📍 {report.city}
+            </div>
+            <div className="text-[9px] text-white/40 uppercase tracking-widest mt-1">
+              🕐 {getTimeAgo(report.createdAt)}
+            </div>
+          </div>
+        </div>
+      )}
+
       <h3 className="text-2xl font-black text-white tracking-tight uppercase mb-1">
         {report.brand} {report.model}
       </h3>
@@ -186,19 +217,9 @@ const PhoneCard = memo(({
         </div>
         <div className="flex items-center justify-between">
           <span className="text-white/40 font-medium">👤 {t('feed_registered_by')}</span>
-          <div className="flex items-center gap-2">
-            {currentUser && report.selfieImageUrl && report.selfieImageUrl !== 'uploading' && (
-              <img 
-                src={report.selfieImageUrl + '?w=100&q=auto&f=auto'} 
-                alt="Owner"
-                loading="lazy"
-                className="w-[30px] h-[30px] rounded-full object-cover border border-pak-teal/50"
-              />
-            )}
-            <span className="text-white font-bold">
-              {currentUser ? report.ownerName : maskText(report.ownerName)} — {report.city}
-            </span>
-          </div>
+          <span className="text-white font-bold">
+            {currentUser ? report.ownerName : maskText(report.ownerName)} — {report.city}
+          </span>
         </div>
       </div>
 
@@ -394,6 +415,8 @@ const FeedPage: React.FC = () => {
   const { t } = useLanguage();
   const { currentUser, signInWithGoogle } = useAuth();
   const [phones, setPhones] = useState<Report[]>(phonesCache.data);
+  const [totalPhones, setTotalPhones] = useState(0);
+  const [recoveredPhones, setRecoveredPhones] = useState(0);
   const [loading, setLoading] = useState(phonesCache.data.length === 0);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [reportFakeId, setReportFakeId] = useState<string | null>(null);
@@ -528,9 +551,29 @@ const FeedPage: React.FC = () => {
       setLoading(false);
     });
 
+    // Statistics fetching
+    const unsubscribeTotal = onSnapshot(collection(db, 'phones'), (snap) => {
+      setTotalPhones(snap.size);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'phones');
+    });
+
+    const unsubscribeRecovered = onSnapshot(
+      query(collection(db, 'phones'), where('status', '==', 'recovered')),
+      (snap) => {
+        setRecoveredPhones(snap.size);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, 'phones');
+      }
+    );
+
     localStorage.setItem('pakimei_last_visited_feed', Date.now().toString());
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      unsubscribeTotal();
+      unsubscribeRecovered();
+    };
   }, []);
 
   const maskIMEI = (imei: string) => {
@@ -587,6 +630,53 @@ const FeedPage: React.FC = () => {
         <p className="mt-4 text-white/60 max-w-2xl mx-auto text-lg">
           {t('feed_subtitle')}
         </p>
+      </div>
+
+      {/* Stats Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 px-0 sm:px-4">
+        {/* Total Registered */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass rounded-2xl p-5 text-center border border-white/10 hover:border-pak-red/30 transition-all group"
+        >
+          <div className="font-display font-black text-3xl md:text-4xl text-pak-red group-hover:scale-110 transition-transform">
+            {totalPhones}
+          </div>
+          <div className="text-white/60 text-[10px] font-black uppercase tracking-widest mt-2">
+            📱 Total Registered
+          </div>
+        </motion.div>
+
+        {/* Recovered */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1 }}
+          className="glass rounded-2xl p-5 text-center border border-pak-teal/30 hover:bg-pak-teal/5 transition-all group"
+        >
+          <div className="font-display font-black text-3xl md:text-4xl text-pak-teal group-hover:scale-110 transition-transform">
+            {recoveredPhones}
+          </div>
+          <div className="text-white/60 text-[10px] font-black uppercase tracking-widest mt-2">
+            ✅ Phones Wapas Mile
+          </div>
+        </motion.div>
+
+        {/* Active Reports */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2 }}
+          className="glass rounded-2xl p-5 text-center border border-pak-orange/30 hover:bg-pak-orange/5 transition-all group"
+        >
+          <div className="font-display font-black text-3xl md:text-4xl text-pak-orange group-hover:scale-110 transition-transform">
+            {totalPhones - recoveredPhones}
+          </div>
+          <div className="text-white/60 text-[10px] font-black uppercase tracking-widest mt-2">
+            🔍 Active Reports
+          </div>
+        </motion.div>
       </div>
 
       {loading ? (
