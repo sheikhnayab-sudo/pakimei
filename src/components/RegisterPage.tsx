@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import * as faceapi from 'face-api.js';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -13,7 +12,7 @@ import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { PAKISTANI_CITIES, PHONE_BRANDS, formatNIC, validateNIC, validateIMEI, formatWhatsAppNumber, validateWhatsAppNumber } from '../constants';
 import { sendConfirmationEmail } from '../services/emailService';
-import { uploadToCloudinary } from '../services/cloudinaryService';
+import { uploadToCloudinary, uploadSelfieToCloudinary } from '../services/cloudinaryService';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 
 const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
@@ -22,62 +21,29 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
   const [captured, setCaptured] = useState<string | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
-  const [faceDetected, setFaceDetected] = useState(false);
-  const [eyesDetected, setEyesDetected] = useState(false);
-  const [modelsLoaded, setModelsLoaded] = useState(false);
-  const [modelsFailed, setModelsFailed] = useState(false);
-  const detectionInterval = useRef<any>(null);
 
-  useEffect(() => {
-    const loadModels = async () => {
-      console.log('Face API models loading from CDN...');
-      try {
-        const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
-        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-        await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
-        console.log('Face API models loaded successfully!');
-        setModelsLoaded(true);
-      } catch (err) {
-        console.error('Face API load error:', err);
-        setModelsFailed(true);
-      }
-    };
-    loadModels();
-  }, []);
-
-  const startDetection = () => {
-    console.log('Starting face detection interval...');
-    detectionInterval.current = setInterval(async () => {
-      if (videoRef.current && modelsLoaded) {
-        try {
-          console.log('Checking for face...');
-          const detection = await faceapi.detectSingleFace(
-            videoRef.current,
-            new faceapi.TinyFaceDetectorOptions({
-              inputSize: 320,
-              scoreThreshold: 0.3
-            })
-          ).withFaceLandmarks(true);
-          console.log('Detection result:', detection);
-          setFaceDetected(!!detection);
-          if (detection && detection.landmarks) {
-            const leftEye = detection.landmarks.getLeftEye();
-            const rightEye = detection.landmarks.getRightEye();
-            setEyesDetected(leftEye.length > 0 && rightEye.length > 0);
-          } else {
-            setEyesDetected(false);
-          }
-        } catch (e) {
-          console.error('Face detection error:', e);
-        }
-      }
-    }, 500);
-  };
-
-  const stopDetection = () => {
-    if (detectionInterval.current) {
-      clearInterval(detectionInterval.current);
+  const checkVideoActive = () => {
+    const video = videoRef.current;
+    if (!video) return false;
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = 50;
+    canvas.height = 50;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return false;
+    ctx.drawImage(video, 0, 0, 50, 50);
+    const imageData = ctx.getImageData(0, 0, 50, 50);
+    const data = imageData.data;
+    
+    // Check if image is mostly black
+    let totalBrightness = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      totalBrightness += (data[i] + data[i+1] + data[i+2]) / 3;
     }
+    const avgBrightness = totalBrightness / (data.length / 4);
+    
+    // If average brightness < 20, image is too dark/black
+    return avgBrightness > 20;
   };
 
   const openCamera = async () => {
@@ -94,7 +60,6 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
           videoRef.current.play().catch(console.error);
-          setTimeout(startDetection, 1000);
         }
       }, 100);
 
@@ -108,16 +73,9 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
 
-    const detection = await faceapi.detectSingleFace(
-      video,
-      new faceapi.TinyFaceDetectorOptions({
-        inputSize: 320,
-        scoreThreshold: 0.3
-      })
-    ).withFaceLandmarks(true);
-    
-    if (!detection) {
-      toast.error('⚠️ Chehra nazar nahi aaya! Dobara try karein.');
+    // Check 1: Video active? 
+    if (!checkVideoActive()) {
+      toast.error('⚠️ Camera theek se kaam nahi kar raha. Dobara kholein ya browser refresh karein.');
       return;
     }
     
@@ -144,7 +102,6 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
       setCaptured(URL.createObjectURL(blob));
       onCapture(file);
       streamRef.current?.getTracks().forEach(t => t.stop());
-      stopDetection();
       setCameraOpen(false);
     }, 'image/jpeg', 0.8);
   };
@@ -157,13 +114,31 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      stopDetection();
       streamRef.current?.getTracks().forEach(t => t.stop());
     };
   }, []);
 
   return (
     <div className="space-y-4">
+      {/* Selfie Tips Instruction Box */}
+      <div style={{
+        background: 'rgba(46,196,182,0.1)',
+        border: '1px solid rgba(46,196,182,0.3)',
+        borderRadius: 10,
+        padding: '0.75rem 1rem',
+        marginBottom: '1rem',
+        fontSize: '0.85rem',
+        color: 'rgba(255,255,255,0.8)',
+        lineHeight: 1.6
+      }}>
+        📸 <strong>Selfie Tips:</strong><br/>
+        ✅ Chehra camera k bilkul saamne rakhein<br/>
+        ✅ Achi roshni mein photo lein<br/>
+        ✅ Aankhein khuli rakhein<br/>
+        ❌ Andhere mein ya door se mat lein<br/>
+        ❌ Koi aur cheez upload karna mana hai
+      </div>
+
       {!cameraOpen && !captured && (
         <button 
           onClick={openCamera} 
@@ -181,11 +156,7 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
 
       {cameraOpen && (
         <div className="space-y-4">
-          <div className="relative overflow-hidden rounded-2xl border-4 transition-colors bg-black"
-            style={{
-              borderColor: eyesDetected ? '#2ec4b6' : faceDetected ? '#f4a261' : '#e63946'
-            }}
-          >
+          <div className="relative overflow-hidden rounded-2xl border-4 border-pak-teal/30 bg-black transition-colors">
             <video 
               ref={videoRef}
               autoPlay 
@@ -232,58 +203,32 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
                   rx="30%" 
                   ry="40%" 
                   fill="none" 
-                  stroke={faceDetected ? '#2ec4b6' : '#e63946'} 
+                  stroke="#2ec4b6" 
                   strokeWidth="3" 
                   strokeDasharray="8,5" 
                 />
               </svg>
             </div>
 
-            <div className={`absolute bottom-0 inset-x-0 p-3 text-center text-[10px] font-black uppercase tracking-widest backdrop-blur-md z-20 ${
-              eyesDetected ? 'bg-pak-teal/20 text-pak-teal' : faceDetected ? 'bg-pak-orange/20 text-pak-orange' : 'bg-pak-red/20 text-pak-red'
-            }`}>
-              {modelsFailed 
-                ? '❌ Models load nahi ho sakay. Internet check karein.'
-                : !modelsLoaded 
-                  ? '⏳ Face detection load ho rahi hai...'
-                  : eyesDetected
-                    ? '✅ Perfect! Photo khainch sakte hain'
-                    : faceDetected 
-                      ? '👀 Dono aankhein camera ki taraf rakhein'
-                      : '⚠️ Apna chehra oval k andar rakhein'
-              }
+            <div className="absolute bottom-0 inset-x-0 p-3 text-center text-[10px] font-black uppercase tracking-widest backdrop-blur-md z-20 bg-pak-teal/20 text-pak-teal">
+              ✅ Camera Active
             </div>
           </div>
 
           <div style={{
             textAlign: 'center',
             marginTop: 8,
-            color: eyesDetected ? '#2ec4b6' : faceDetected ? '#f4a261' : '#e63946',
+            color: '#2ec4b6',
             fontWeight: 600,
             fontSize: '0.85rem'
           }}>
-            {modelsFailed 
-              ? '❌ Models load nahi ho sakay. Internet check karein.'
-              : !modelsLoaded 
-                ? '⏳ Face detection load ho rahi hai...'
-                : eyesDetected
-                  ? '✅ Perfect! Photo khainch sakte hain'
-                  : faceDetected 
-                    ? '👀 Dono aankhein camera ki taraf rakhein'
-                    : '⚠️ Apna chehra oval k andar rakhein'
-            }
+            ⚠️ Apna chehra oval k andar rakhein
           </div>
 
           <button 
             onClick={capturePhoto} 
             type="button"
-            disabled={!faceDetected}
-            className="w-full bg-pak-teal text-white font-black py-4 rounded-xl uppercase tracking-widest flex items-center justify-center gap-3 transition-all"
-            style={{
-              opacity: faceDetected ? 1 : 0.5,
-              cursor: faceDetected ? 'pointer' : 'not-allowed',
-              marginTop: '1rem'
-            }}
+            className="w-full bg-pak-teal text-white font-black py-4 rounded-xl uppercase tracking-widest flex items-center justify-center gap-3 transition-all hover:bg-white hover:text-navy-900 shadow-lg shadow-pak-teal/20"
           >
             <Camera size={20} /> 📸 Photo Khainchein
           </button>
@@ -576,6 +521,14 @@ const Register: React.FC = () => {
       return;
     }
 
+    // Check file size minimum (black screen = very small file)
+    if (selfieFile.size < 5000) { // less than 5KB
+      toast.error('⚠️ Selfie sahi nahi hai. Dobara camera se live photo lein.');
+      setLoading(false);
+      isSubmitting.current = false;
+      return;
+    }
+
     setLoading(true);
     isSubmitting.current = true;
     const statusToast = toast.loading("Processing your request...");
@@ -619,9 +572,19 @@ const Register: React.FC = () => {
 
       // Upload Selfie (Mandatory)
       if (selfieFile) {
-        finalSelfieUrl = await uploadToCloudinary(selfieFile, (p) => {
-          toast.loading(`📸 Selfie upload ho rahi hai... ${p}%`, { id: statusToast });
-        });
+        try {
+          finalSelfieUrl = await uploadSelfieToCloudinary(selfieFile, (p) => {
+            toast.loading(`📸 Selfie upload ho rahi hai... ${p}%`, { id: statusToast });
+          });
+        } catch (err: any) {
+          if (err.message === 'NO_FACE_DETECTED') {
+            toast.error('⚠️ Selfie mein koi chehra nazar nahi aaya! Apna chehra camera k saamne rakh kar dobara selfie lein.', { id: statusToast });
+            setLoading(false);
+            isSubmitting.current = false;
+            return;
+          }
+          throw err;
+        }
       }
 
       // PHASE 2: Save to Firestore with real URLs
