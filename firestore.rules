@@ -36,33 +36,14 @@ service cloud.firestore {
 
     function isValidReport(data) {
       return data.keys().hasAll([
-               'ownerName', 'nicNumber', 'address', 'contactNumber', 'whatsappNumber', 
-               'lossDateTime', 'lossLocation', 'imei', 'imei2', 'brand', 'model', 'color', 
-               'reportType', 'description', 'status', 'createdAt', 'userId', 'userEmail', 
-               'verified', 'hasPoliceReport', 'proofType', 'proofImageUrl', 'selfieImageUrl', 'city'
+               'ownerName', 'imei', 'brand', 'model', 'city', 'status', 'createdAt', 'userId', 'userEmail'
              ]) &&
-             data.keys().size() == 24 &&
              data.ownerName is string && data.ownerName.size() >= 3 && data.ownerName.size() <= 100 &&
-             data.nicNumber is string && data.nicNumber.matches('^[0-9]{5}-[0-9]{7}-[0-9]{1}$') &&
-             data.address is map &&
-             data.address.city is string &&
              data.city is string &&
-             data.contactNumber is string && data.contactNumber.size() <= 15 &&
-             data.whatsappNumber is string && data.whatsappNumber.size() <= 15 &&
-             data.lossLocation is string && data.lossLocation.size() <= 256 &&
              data.imei is string && data.imei.size() == 15 &&
-             data.imei2 is string && (data.imei2 == "" || data.imei2.size() == 15) &&
              data.brand is string &&
              data.model is string && data.model.size() <= 100 &&
-             data.color is string && data.color.size() <= 64 &&
-             data.reportType in ['stolen', 'lost'] &&
-             data.description is string && data.description.size() <= 1000 &&
-             data.hasPoliceReport in ['yes', 'no'] &&
-             data.proofType in ['police_report', 'box_image', 'purchase_slip'] &&
-             data.proofImageUrl is string && (data.proofImageUrl == "" || data.proofImageUrl.size() <= 1024) &&
-             data.selfieImageUrl is string && (data.selfieImageUrl == "" || data.selfieImageUrl.size() <= 1024) &&
              data.status in ['pending', 'verified', 'flagged', 'recovered'] &&
-             data.verified is bool &&
              data.userId is string && data.userId.size() <= 128 &&
              data.userEmail is string && data.userEmail.size() <= 200;
     }

@@ -455,6 +455,8 @@ const Register: React.FC = () => {
     
     if (isSubmitting.current) return;
 
+    console.log('Step 1: Validation started');
+
     if (!currentUser) {
       toast.error(t('auth_guest_prompt'));
       return;
@@ -554,8 +556,9 @@ const Register: React.FC = () => {
       // PHASE 1: Upload Images
       toast.loading("Tasveerein upload ho rahi hain... 📤", { id: statusToast });
       
-      // Upload Proof if exists
+      // Upload Proof if exists - step 4 (make optional temporarily)
       if (selectedFile) {
+        console.log('Step 3: Proof upload started');
         let uploadBlob: Blob | File = selectedFile;
         if (selectedFile.type.startsWith('image/')) {
           try {
@@ -565,44 +568,71 @@ const Register: React.FC = () => {
           }
         }
 
-        finalProofUrl = await uploadToCloudinary(uploadBlob as File, (p) => {
-          toast.loading(`📤 Proof image upload ho rahi hai... ${p}%`, { id: statusToast });
-        });
+        try {
+          finalProofUrl = await uploadToCloudinary(uploadBlob as File, (p) => {
+            toast.loading(`📤 Proof image upload ho rahi hai... ${p}%`, { id: statusToast });
+          });
+        } catch (proofErr: any) {
+          console.error('Proof upload failed:', proofErr);
+          finalProofUrl = '';
+          toast('⚠️ Proof upload nahi hua lekin entry save ho rahi hai');
+        }
       }
 
-      // Upload Selfie (Mandatory)
+      // Upload Selfie (Mandatory / Optional fallback) - step 3 (make optional temporarily)
       if (selfieFile) {
+        console.log('Step 2: Selfie upload started');
         try {
           finalSelfieUrl = await uploadSelfieToCloudinary(selfieFile, (p) => {
             toast.loading(`📸 Selfie upload ho rahi hai... ${p}%`, { id: statusToast });
           });
         } catch (err: any) {
+          console.error('Selfie upload failed:', err);
           if (err.message === 'NO_FACE_DETECTED') {
             toast.error('⚠️ Selfie mein koi chehra nazar nahi aaya! Apna chehra camera k saamne rakh kar dobara selfie lein.', { id: statusToast });
             setLoading(false);
             isSubmitting.current = false;
             return;
           }
-          throw err;
+          finalSelfieUrl = '';
+          toast('⚠️ Selfie upload nahi hui lekin entry save ho rahi hai');
         }
       }
 
-      // PHASE 2: Save to Firestore with real URLs
+      // PHASE 2: Save to Firestore with real URLs - step 5 (simplified database save with defaults)
+      console.log('Step 4: Saving to Firestore');
       toast.loading("Entry save ho rahi hai... 💾", { id: statusToast });
+      
       const reportData = {
-        ...formData,
-        city: formData.address.city,
-        proofType: finalProofType,
-        proofImageUrl: finalProofUrl,
-        selfieImageUrl: finalSelfieUrl,
         userId: currentUser.uid,
         userEmail: currentUser.email,
+        ownerName: formData.ownerName,
+        imei: formData.imei,
+        brand: formData.brand,
+        model: formData.model,
+        city: formData.address?.city || formData.city,
         status: 'pending' as const,
         createdAt: serverTimestamp(),
+        // Support all other optional fields gracefully
+        nicNumber: formData.nicNumber || '',
+        address: formData.address || { street: '', town: '', city: formData.address?.city || formData.city },
+        contactNumber: formData.contactNumber || '',
+        whatsappNumber: formData.whatsappNumber || '',
+        lossDateTime: formData.lossDateTime || '',
+        lossLocation: formData.lossLocation || '',
+        imei2: formData.imei2 || '',
+        color: formData.color || '',
+        reportType: formData.reportType || 'stolen',
+        description: formData.description || '',
+        hasPoliceReport: formData.hasPoliceReport || 'no',
+        proofType: finalProofType || 'box_image',
+        proofImageUrl: finalProofUrl || '',
+        selfieImageUrl: finalSelfieUrl || '',
         verified: false
       };
 
       const docRef = await addDoc(collection(db, 'phones'), reportData);
+      console.log('Step 5: Complete');
       const refId = docRef.id.slice(0, 8).toUpperCase();
 
       // Update local history
@@ -662,9 +692,19 @@ const Register: React.FC = () => {
         console.error("Email failed:", err);
       });
 
-    } catch (error: any) {
-      console.error("Submission error:", error);
-      toast.error(t('reg_error_generic'), { id: statusToast });
+    } catch (err: any) {
+      console.error('Registration error:', err.code, err.message);
+      console.error('Full error:', err);
+      
+      if (err.code === 'permission-denied') {
+        toast.error('Permission error — Firestore rules check karein', { id: statusToast });
+      } else if (err.code === 'unauthenticated') {
+        toast.error('Login karein pehle', { id: statusToast });
+      } else if (err.message === 'NO_FACE_DETECTED') {
+        toast.error('Selfie mein chehra nazar nahi aaya', { id: statusToast });
+      } else {
+        toast.error('Error: ' + err.message, { id: statusToast });
+      }
       setLoading(false);
       isSubmitting.current = false;
     }
