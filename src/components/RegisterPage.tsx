@@ -75,7 +75,7 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
 
     // Check 1: Video active? 
     if (!checkVideoActive()) {
-      toast.error('⚠️ Camera theek se kaam nahi kar raha. Dobara kholein ya browser refresh karein.');
+      toast.error('Camera black screen hai. Roshni mein aayein ya browser refresh karein.');
       return;
     }
     
@@ -92,6 +92,10 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
     canvas.toBlob((blob) => {
       if (!blob) {
         toast.error('Photo nahi li gayi. Dobara try karein.');
+        return;
+      }
+      if (blob.size < 8000) {
+        toast.error('Selfie sahi nahi hai — Chehra camera k saamne rakhein.');
         return;
       }
       const file = new File(
@@ -524,7 +528,7 @@ const Register: React.FC = () => {
     }
 
     // Check file size minimum (black screen = very small file)
-    if (selfieFile.size < 5000) { // less than 5KB
+    if (selfieFile.size < 8000) { // less than 8KB
       toast.error('⚠️ Selfie sahi nahi hai. Dobara camera se live photo lein.');
       setLoading(false);
       isSubmitting.current = false;

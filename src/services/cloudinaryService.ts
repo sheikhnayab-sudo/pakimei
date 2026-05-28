@@ -60,8 +60,6 @@ export const uploadSelfieToCloudinary = async (
   formData.append('file', file);
   formData.append('upload_preset', uploadPreset);
   formData.append('folder', 'pakimei/selfies');
-  // Request face detection from Cloudinary
-  formData.append('detection', 'adv_face');
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -75,25 +73,19 @@ export const uploadSelfieToCloudinary = async (
 
     xhr.addEventListener('load', () => {
       if (xhr.status === 200) {
-        const data = JSON.parse(xhr.responseText);
-        
-        // Check if Cloudinary detected a face
-        // Note: 'adv_face' result is usually in data.info.detection.adv_face.faces
-        const hasFace = data.info?.detection?.adv_face?.data?.length > 0 || data.info?.detection?.adv_face?.faces?.length > 0;
-        
-        if (!hasFace) {
-          reject(new Error('NO_FACE_DETECTED'));
-          return;
+        try {
+          const data = JSON.parse(xhr.responseText);
+          resolve(data.secure_url);
+        } catch (err) {
+          reject(new Error('Failed to parse Cloudinary response'));
         }
-        
-        resolve(data.secure_url);
       } else {
         const errorMsg = xhr.responseText || 'Upload failed';
         reject(new Error(errorMsg));
       }
     });
 
-    xhr.addEventListener('error', () => reject(new Error('Upload failed')));
+    xhr.addEventListener('error', () => reject(new Error('Network error')));
     
     xhr.open(
       'POST', 
