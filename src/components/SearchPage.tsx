@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { Search as SearchIcon, AlertTriangle, CheckCircle2, ShieldAlert, Smartphone, ArrowLeft, Loader2, MapPin, Lock, UserPlus } from 'lucide-react';
+import { Search as SearchIcon, AlertTriangle, CheckCircle2, ShieldAlert, Smartphone, ArrowLeft, Loader2, MapPin, Lock, UserPlus, Eye } from 'lucide-react';
 import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
 import { db } from '../firebase';
@@ -12,6 +12,26 @@ import { AnimatePresence } from 'motion/react';
 import { formatWhatsAppNumber } from '../constants';
 import RecoveryModal from './RecoveryModal';
 
+const formatDate = (dateValue: any) => {
+  if (!dateValue) return 'N/A';
+  try {
+    let date: Date;
+    if (dateValue && typeof dateValue.toDate === 'function') {
+      date = dateValue.toDate();
+    } else {
+      date = new Date(dateValue);
+    }
+    if (isNaN(date.getTime())) return String(dateValue);
+    
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  } catch {
+    return String(dateValue);
+  }
+};
+
 const shareOnWhatsApp = (entry: any) => {
   const waNum = formatWhatsAppNumber(entry.whatsappNumber);
   const message = 
@@ -19,7 +39,7 @@ const shareOnWhatsApp = (entry: any) => {
     `📱 Phone: ${entry.brand} ${entry.model || 'Hidden'}\n` +
     `🔢 IMEI: ${entry.imei}\n` +
     `📍 City: ${entry.city || 'N/A'}\n` +
-    `📅 Tarikh: ${entry.lossDateTime || 'N/A'}\n\n` +
+    `📅 Tarikh: ${formatDate(entry.lossDateTime) || 'N/A'}\n\n` +
     `Agar ye phone unlock hone aaye to ` +
     `owner se rabta karein: +${waNum}\n\n` +
     `🔍 IMEI Check karein:\n` +
@@ -53,6 +73,41 @@ const RestrictedResultCard: React.FC<{ result: any; onLogin: () => void }> = ({ 
           </div>
         </div>
 
+        {/* COMPLAINANT / OWNER LARGE PHOTO SECTION */}
+        {result.selfieImageUrl && result.selfieImageUrl !== 'uploading' && (
+          <div className="mb-8 p-6 bg-slate-950/70 rounded-2xl border border-red-500/20 flex flex-col md:flex-row items-center gap-6 shadow-xl animate-fade-in">
+            <div 
+              className="relative cursor-pointer group/selfie flex-shrink-0 animate-scale-up"
+              onClick={() => window.open(result.selfieImageUrl, '_blank')}
+              title="View full-size photo"
+            >
+              <img
+                src={result.selfieImageUrl + '?w=400&q=auto&f=auto'}
+                loading="lazy"
+                alt="Complainant"
+                className="w-48 h-48 rounded-2xl object-cover border-4 border-pak-red/60 shadow-2xl transition-transform duration-300 hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-black/45 rounded-2xl flex items-center justify-center opacity-0 group-hover/selfie:opacity-100 transition-opacity duration-200">
+                <Eye size={32} className="text-white" />
+              </div>
+              <div className="absolute -bottom-2 -right-2 bg-red-500 text-slate-950 p-1.5 rounded-full shadow-lg border-2 border-slate-950 flex items-center justify-center w-8 h-8">
+                <Eye size={16} className="stroke-[3]" />
+              </div>
+            </div>
+            <div className="flex-1 text-center md:text-left">
+              <span className="text-xs font-black uppercase tracking-widest text-red-400 bg-red-500/10 border border-red-500/20 px-3 py-1 rounded inline-block mb-3 animate-pulse">
+                👤 COMPLAINANT PHOTO / MUDDAI KI TASVEER
+              </span>
+              <h4 className="font-display font-black text-white/30 text-3xl leading-none italic blurred select-none">
+                Owner info Hidden
+              </h4>
+              <p className="text-sm font-medium text-white/60 mt-3 leading-relaxed max-w-lg">
+                Privacy aur security ke tehat owner ka naam aur phone number mehdood rakha gaya hai, par selfie yahan vazeh tor par dikhayi gayi hai taake aap visual identification kar sakein. Mukammal maloomat ke liye login/sign-up karein.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative">
           <div className="glass rounded-2xl p-7 border border-white/20">
             <span className="text-xs font-black uppercase tracking-[0.2em] text-white/40">Device Info</span>
@@ -63,7 +118,16 @@ const RestrictedResultCard: React.FC<{ result: any; onLogin: () => void }> = ({ 
               <div>
                 <p className="text-2xl font-black text-white capitalize leading-none mb-2">{result.brand}</p>
                 <p className="text-lg font-black text-white/20 blurred leading-none mb-2">Model Name Hidden</p>
-                <p className="text-sm font-mono text-white/50 tracking-widest">{maskIMEI(result.imei)}</p>
+                <div className="flex flex-col gap-1.5 mt-2 font-mono text-sm">
+                  <p className="text-white/50 tracking-widest text-xs">
+                    IMEI 1: <span className="font-bold text-red-400">{maskIMEI(result.imei)}</span>
+                  </p>
+                  {result.imei2 && result.imei2.trim() !== '' && (
+                    <p className="text-white/50 tracking-widest text-xs">
+                      IMEI 2: <span className="font-bold text-red-400">{maskIMEI(result.imei2)}</span>
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
             {result.proofType && (
@@ -358,7 +422,7 @@ const Search: React.FC = () => {
                     <div>
                       <h3 className="font-display text-3xl font-black uppercase italic tracking-tighter leading-none">{t('search_status_stolen')}</h3>
                       <p className="font-bold opacity-80 text-sm mt-1">
-                        {t('search_reported_on')} {new Date(result.lossDateTime || result.dateStolen).toLocaleDateString()}
+                        {t('search_reported_on')} {formatDate(result.lossDateTime || result.dateStolen)}
                       </p>
                     </div>
                   </div>
@@ -373,30 +437,37 @@ const Search: React.FC = () => {
 
                 {/* Profile Section */}
                 {result.selfieImageUrl && result.selfieImageUrl !== 'uploading' && (
-                  <div className="mt-8 flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
-                    <img
-                      src={result.selfieImageUrl + '?w=200&q=auto&f=auto'}
-                      loading="lazy"
-                      alt="Owner"
-                      style={{
-                        width: 90,
-                        height: 90,
-                        borderRadius: '50%',
-                        objectFit: 'cover',
-                        border: '3px solid rgba(46,196,182,0.6)',
-                        boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
-                        flexShrink: 0,
-                      }}
-                    />
-                    <div>
-                      <div className="font-display font-bold text-white text-xl">
-                        {result.ownerName}
+                  <div className="mt-8 p-6 bg-slate-950/70 rounded-2xl border border-white/10 flex flex-col md:flex-row items-center gap-6 shadow-xl animate-fade-in">
+                    <div 
+                      className="relative cursor-pointer group/selfie flex-shrink-0 animate-scale-up"
+                      onClick={() => window.open(result.selfieImageUrl, '_blank')}
+                      title="View full-size photo"
+                    >
+                      <img
+                        src={result.selfieImageUrl + '?w=400&q=auto&f=auto'}
+                        loading="lazy"
+                        alt="Owner"
+                        className="w-48 h-48 rounded-2xl object-cover border-4 border-pak-teal/60 shadow-2xl transition-transform duration-300 hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-black/45 rounded-2xl flex items-center justify-center opacity-0 group-hover/selfie:opacity-100 transition-opacity duration-200">
+                        <Eye size={32} className="text-white" />
                       </div>
-                      <div className="text-sm text-white/50 uppercase tracking-widest mt-1">
+                      <div className="absolute -bottom-2 -right-2 bg-teal-500 text-slate-950 p-1.5 rounded-full shadow-lg border-2 border-slate-950 flex items-center justify-center w-8 h-8">
+                        <Eye size={16} className="stroke-[3]" />
+                      </div>
+                    </div>
+                    <div className="flex-1 text-center md:text-left">
+                      <span className="text-xs font-black uppercase tracking-widest text-teal-400 bg-teal-400/10 border border-teal-400/20 px-3 py-1 rounded inline-block mb-3 animate-pulse">
+                        👤 COMPLAINANT PHOTO / MUDDAI KI TASVEER
+                      </span>
+                      <h4 className="font-display font-black text-white text-3xl leading-snug">
+                        {result.ownerName}
+                      </h4>
+                      <div className="text-sm text-white/60 uppercase tracking-widest mt-2 flex items-center justify-center md:justify-start gap-1">
                         📍 {result.city || result.lossLocation}
                       </div>
-                      <div className="text-xs text-white/40 uppercase tracking-widest mt-1">
-                        🕐 {new Date(result.createdAt?.toDate?.() || Date.now()).toLocaleDateString('en-PK')}
+                      <div className="text-xs text-white/50 uppercase tracking-widest mt-1.5">
+                        🕐 Registered On: {formatDate(result.createdAt)}
                       </div>
                     </div>
                   </div>
@@ -411,7 +482,16 @@ const Search: React.FC = () => {
                       </div>
                       <div>
                         <p className="text-2xl font-black text-white capitalize leading-none mb-2">{result.brand} {result.model}</p>
-                        <p className="text-sm font-mono text-white/50 tracking-widest">{result.imei}</p>
+                        <div className="flex flex-col gap-1.5 mt-2 font-mono text-sm">
+                          <p className="text-white/70 tracking-widest text-xs">
+                            IMEI 1: <span className="font-bold text-teal-400">{result.imei}</span>
+                          </p>
+                          {result.imei2 && result.imei2.trim() !== '' && (
+                            <p className="text-white/70 tracking-widest text-xs">
+                              IMEI 2: <span className="font-bold text-teal-400">{result.imei2}</span>
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
 

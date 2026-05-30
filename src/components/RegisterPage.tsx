@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { PAKISTANI_CITIES, PHONE_BRANDS, formatNIC, validateNIC, validateIMEI, formatWhatsAppNumber, validateWhatsAppNumber } from '../constants';
-import { sendConfirmationEmail } from '../services/emailService';
+import { sendConfirmationEmail, sendErrorAlertEmail } from '../services/emailService';
 import { uploadToCloudinary, uploadSelfieToCloudinary } from '../services/cloudinaryService';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 
@@ -580,6 +580,15 @@ const Register: React.FC = () => {
           console.error('Proof upload failed:', proofErr);
           finalProofUrl = '';
           toast('⚠️ Proof upload nahi hua lekin entry save ho rahi hai');
+          
+          sendErrorAlertEmail({
+            errorType: 'Proof Upload Failure',
+            errorMessage: proofErr?.message || String(proofErr),
+            errorStack: proofErr?.stack,
+            userEmail: currentUser?.email || 'Guest',
+            userId: currentUser?.uid,
+            additionalContext: `Owner: ${formData.ownerName}, Brand: ${formData.brand}, Model: ${formData.model}, ProofType: ${formData.proofType || 'box_image'}`
+          });
         }
       }
 
@@ -600,6 +609,15 @@ const Register: React.FC = () => {
           }
           finalSelfieUrl = '';
           toast('⚠️ Selfie upload nahi hui lekin entry save ho rahi hai');
+          
+          sendErrorAlertEmail({
+            errorType: 'Selfie Upload Failure',
+            errorMessage: err?.message || String(err),
+            errorStack: err?.stack,
+            userEmail: currentUser?.email || 'Guest',
+            userId: currentUser?.uid,
+            additionalContext: `Owner: ${formData.ownerName}, Brand: ${formData.brand}, Model: ${formData.model}`
+          });
         }
       }
 
@@ -700,6 +718,15 @@ const Register: React.FC = () => {
       console.error('Registration error:', err.code, err.message);
       console.error('Full error:', err);
       
+      sendErrorAlertEmail({
+        errorType: 'Registration Failure / Database Save Failure',
+        errorMessage: err?.message || String(err),
+        errorStack: err?.stack,
+        userEmail: currentUser?.email || 'Guest',
+        userId: currentUser?.uid,
+        additionalContext: `Owner: ${formData.ownerName}, Brand: ${formData.brand}, Model: ${formData.model}, IMEI: ${formData.imei}, IMEI2: ${formData.imei2 || 'N/A'}, City: ${formData.address?.city || formData.city}, ErrorCode: ${err?.code || 'None'}`
+      });
+
       if (err.code === 'permission-denied') {
         toast.error('Permission error — Firestore rules check karein', { id: statusToast });
       } else if (err.code === 'unauthenticated') {

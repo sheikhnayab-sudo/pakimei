@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { 
   Smartphone, MapPin, Calendar, Clock, Lock, 
   MessageCircle, Phone, Loader2, AlertTriangle, ChevronDown,
-  Trash2, X
+  Trash2, X, Eye
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
@@ -47,25 +47,25 @@ interface Report {
 }
 
 const SkeletonCard = () => (
-  <div className="glass rounded-3xl p-6 border border-white/10 animate-pulse bg-white/[0.05]">
-    <div className="flex justify-between items-center mb-6">
-      <div className="h-4 w-24 bg-white/10 rounded-full" />
-      <div className="h-4 w-32 bg-white/5 rounded-full" />
+  <div className="relative flex flex-col overflow-hidden rounded-2xl border border-white/5 bg-slate-950/45 backdrop-blur-xl p-4.5 animate-pulse">
+    <div className="flex justify-between items-center mb-4">
+      <div className="h-3 w-20 bg-white/10 rounded-full" />
+      <div className="h-3 w-24 bg-white/5 rounded-full" />
     </div>
-    <div className="h-8 w-64 bg-white/10 rounded-lg mb-4" />
-    <div className="h-4 w-40 bg-white/5 rounded-md mb-8" />
-    <div className="space-y-4 border-t border-white/5 pt-6">
+    <div className="h-6 w-48 bg-white/10 rounded-lg mb-3" />
+    <div className="h-4 w-32 bg-white/5 rounded-md mb-6" />
+    <div className="space-y-3.5 border-t border-white/5 pt-4">
       <div className="flex justify-between">
-        <div className="h-4 w-24 bg-white/5 rounded" />
-        <div className="h-4 w-32 bg-white/10 rounded" />
+        <div className="h-3.5 w-20 bg-white/5 rounded" />
+        <div className="h-3.5 w-24 bg-white/10 rounded" />
       </div>
       <div className="flex justify-between">
-        <div className="h-4 w-24 bg-white/5 rounded" />
-        <div className="h-4 w-32 bg-white/10 rounded" />
+        <div className="h-3.5 w-20 bg-white/5 rounded" />
+        <div className="h-3.5 w-24 bg-white/10 rounded" />
       </div>
       <div className="flex justify-between">
-        <div className="h-4 w-24 bg-white/5 rounded" />
-        <div className="h-4 w-32 bg-white/10 rounded" />
+        <div className="h-3.5 w-20 bg-white/5 rounded" />
+        <div className="h-3.5 w-24 bg-white/10 rounded" />
       </div>
     </div>
   </div>
@@ -91,197 +91,210 @@ const PhoneCard = memo(({
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay: (idx % 20) * 0.05 }}
-    className="glass rounded-3xl border border-white/10 overflow-hidden flex flex-col relative group"
+    className="relative flex flex-col overflow-hidden rounded-2xl border border-white/5 bg-slate-950/45 backdrop-blur-xl shadow-xl transition-all duration-300 hover:border-white/10 hover:shadow-cyan-950/15 hover:shadow-xl group"
   >
-    {/* Header/Badge */}
-    <div className={`p-4 flex justify-between items-center ${report.reportType === 'stolen' ? 'bg-pak-red/10' : 'bg-pak-teal/10'}`}>
+    {/* Header/Badge Area with clean colored overlay */}
+    <div className={`p-4 px-5 flex flex-wrap gap-2 justify-between items-center border-b border-white/5 ${
+      report.reportType === 'stolen' ? 'bg-gradient-to-r from-red-500/10 to-transparent' : 'bg-gradient-to-r from-teal-500/10 to-transparent'
+    }`}>
       <div className="flex items-center gap-2">
-        <div className={`h-2 w-2 rounded-full animate-pulse ${report.reportType === 'stolen' ? 'bg-pak-red' : 'bg-pak-teal'}`} />
-        <span className={`text-xs font-black uppercase tracking-widest ${report.reportType === 'stolen' ? 'text-pak-red' : 'text-pak-teal'}`}>
-            {report.reportType === 'stolen' ? '🚨 STOLEN' : '⚠️ LOST'}
+        <div className={`h-2 w-2 rounded-full animate-pulse ${
+          report.reportType === 'stolen' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.7)]' : 'bg-teal-400 shadow-[0_0_8px_rgba(45,212,191,0.7)]'
+        }`} />
+        <span className={`text-[11px] font-black uppercase tracking-widest ${
+          report.reportType === 'stolen' ? 'text-red-400' : 'text-teal-400'
+        }`}>
+          {report.reportType === 'stolen' ? '🚨 STOLEN' : '⚠️ LOST'}
         </span>
         {report.updatedAt && (
-          <span className="text-pak-teal text-[9px] font-black uppercase tracking-[0.2em] ml-2 animate-pulse">
+          <span className="text-teal-400 bg-teal-400/10 border border-teal-400/20 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded ml-1 animate-pulse leading-none">
             ✏️ Updated
           </span>
         )}
       </div>
-      <div className="flex items-center gap-4 text-white/40 text-[10px] font-bold uppercase tracking-wider">
-        <span className="flex items-center gap-1"><MapPin size={10} /> {report.city}</span>
-        <span className="flex items-center gap-1"><Clock size={10} /> {getTimeAgo(report.createdAt)}</span>
+      <div className="flex items-center gap-3 text-white/40 text-[11px] font-bold uppercase tracking-widest">
+        <span className="flex items-center gap-1"><MapPin size={11} className="text-white/30" /> {report.city}</span>
+        <span className="flex items-center gap-1"><Clock size={11} className="text-white/30" /> {getTimeAgo(report.createdAt)}</span>
       </div>
     </div>
 
-    {/* Content */}
-    <div className="p-6 flex-1">
-      {/* Profile Section */}
+    {/* Content Area */}
+    <div className="p-5 flex-1 flex flex-col">
+      {/* Profile Section - compact header row */}
       {report.selfieImageUrl && report.selfieImageUrl !== 'uploading' && (
-        <div className="flex items-center gap-4 mb-6 p-2 bg-white/5 rounded-xl">
-          <img
-            src={report.selfieImageUrl + '?w=200&q=auto&f=auto'}
-            loading="lazy"
-            alt="Owner"
-            style={{
-              width: 90,
-              height: 90,
-              borderRadius: '50%',
-              objectFit: 'cover',
-              border: '3px solid rgba(46,196,182,0.6)',
-              boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
-              flexShrink: 0,
-            }}
-          />
-          <div>
-            <div className="font-display font-bold text-white text-base">
+        <div className="flex items-center gap-3 mb-4 p-2.5 bg-white/[0.01] border border-white/5 rounded-xl">
+          <div 
+            className="relative cursor-pointer group/selfie flex-shrink-0"
+            onClick={() => window.open(report.selfieImageUrl, '_blank')}
+            title="View full-size selfie"
+          >
+            <img
+              src={report.selfieImageUrl + '?w=150&q=auto&f=auto'}
+              loading="lazy"
+              alt="Owner"
+              style={{
+                width: 54,
+                height: 54,
+                borderRadius: '50%',
+                objectFit: 'cover',
+                border: '2px solid rgba(46,196,182,0.6)',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+              }}
+            />
+            {/* Hover visual overlay */}
+            <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover/selfie:opacity-100 transition-opacity duration-200">
+              <Eye size={15} className="text-white" />
+            </div>
+            {/* Permanent view indicator badge */}
+            <div className="absolute -bottom-1 -right-1 bg-teal-500 text-slate-950 p-0.5 rounded-full shadow-lg border border-slate-950 flex items-center justify-center w-4 h-4">
+              <Eye size={10} className="stroke-[3]" />
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[9px] font-black uppercase tracking-widest text-teal-400 bg-teal-400/5 border border-teal-400/10 px-1.5 py-0.5 rounded inline-block leading-none mb-1">
+              🛡️ VERIFIED OWNER
+            </div>
+            <div className="font-display font-black text-white text-base truncate leading-snug">
               {currentUser ? report.ownerName : maskText(report.ownerName)}
             </div>
-            <div className="text-[10px] text-white/50 uppercase tracking-widest mt-1">
+            <div className="text-[11px] text-white/50 flex items-center gap-1 mt-0.5 font-medium">
               📍 {report.city}
-            </div>
-            <div className="text-[9px] text-white/40 uppercase tracking-widest mt-1">
-              🕐 {getTimeAgo(report.createdAt)}
             </div>
           </div>
         </div>
       )}
 
-      <h3 className="text-2xl font-black text-white tracking-tight uppercase mb-1">
-        {report.brand} {report.model}
-      </h3>
-      <div className="flex items-center gap-2 text-white/50 text-xs font-mono mb-6">
-        <Lock size={12} className="text-pak-orange" />
-        <span>IMEI: {currentUser ? report.imei : maskIMEI(report.imei)}</span>
+      {/* Brand & Model styling */}
+      <div className="mb-3.5">
+        <h3 className="text-xl font-black text-white tracking-tight uppercase leading-none mb-2 font-display group-hover:text-teal-400 transition-colors duration-200">
+          {report.brand} {report.model}
+        </h3>
+        
+        {/* Secured IMEI indicators */}
+        <div className="flex flex-col gap-1.5">
+          <div className="inline-flex items-center gap-1.5 bg-white/[0.01] border border-dashed border-white/10 rounded-lg px-2.5 py-1 font-mono text-xs text-white/70 self-start">
+            <Lock size={11} className="text-amber-500" />
+            <span className="tracking-wide text-xs">
+              IMEI 1: <span className="font-bold text-teal-300">{currentUser ? report.imei : maskIMEI(report.imei)}</span>
+            </span>
+          </div>
+          {report.imei2 && report.imei2.trim() !== '' && (
+            <div className="inline-flex items-center gap-1.5 bg-white/[0.01] border border-dashed border-white/10 rounded-lg px-2.5 py-1 font-mono text-xs text-white/70 self-start">
+              <Lock size={11} className="text-amber-500" />
+              <span className="tracking-wide text-xs">
+                IMEI 2: <span className="font-bold text-teal-300">{currentUser ? report.imei2 : maskIMEI(report.imei2)}</span>
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 border-t border-white/5 pt-6 text-sm">
-        {/* Proof Section */}
+      {/* Information Row List */}
+      <div className="mt-1 space-y-2 border-t border-white/5 pt-3.5 text-xs">
+        <div className="flex items-center justify-between pb-2 border-b border-white/[0.02]">
+          <span className="text-white/40 font-medium tracking-wider uppercase text-[10px]">📅 Loss Date</span>
+          <span className="text-white font-bold font-mono bg-white/[0.01] px-2 py-0.5 rounded border border-white/5">{formatDate(report.lossDateTime)}</span>
+        </div>
+        <div className="flex items-center justify-between pb-2 border-b border-white/[0.02]">
+          <span className="text-white/40 font-medium tracking-wider uppercase text-[10px]">📍 Last Location</span>
+          <span className="text-white font-bold truncate max-w-[150px] text-right" title={report.lossLocation}>{report.lossLocation}</span>
+        </div>
+        <div className="flex items-center justify-between pb-2">
+          <span className="text-white/40 font-medium tracking-wider uppercase text-[10px]">👤 Registered By</span>
+          <span className="text-white font-bold text-right truncate max-w-[150px]">
+            {currentUser ? report.ownerName : maskText(report.ownerName)} ({report.city})
+          </span>
+        </div>
+
+        {/* Proof Document Segment */}
         {report.proofType && (
-          <div className="mb-2">
-            <span className="text-white/40 font-medium block mb-2">📎 Uploaded Proof:</span>
-            <div className="flex flex-wrap items-center gap-3">
-              <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
-                report.proofType === 'police_report' ? 'bg-pak-red/20 text-pak-red border-pak-red/30' :
-                report.proofType === 'box_image' ? 'bg-pak-teal/20 text-pak-teal border-pak-teal/30' :
-                'bg-pak-orange/20 text-pak-orange border-pak-orange/30'
-              }`}>
-                {report.proofType === 'police_report' && "🚨 Police FIR Copy"}
-                {report.proofType === 'box_image' && "📦 Mobile Box Photo"}
-                {report.proofType === 'purchase_slip' && "🧾 Purchase Slip"}
-              </span>
+          <div className="mt-3 bg-white/[0.01] border border-white/5 rounded-xl p-3">
+            <span className="text-[10px] font-black uppercase tracking-widest text-white/40 block mb-2">📎 EVIDENCE:</span>
+            <div className="flex flex-col gap-2">
+              <div>
+                <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
+                  report.proofType === 'police_report' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                  report.proofType === 'box_image' ? 'bg-teal-500/10 text-teal-400 border-teal-500/20' :
+                  'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                }`}>
+                  {report.proofType === 'police_report' && "🚨 Police FIR"}
+                  {report.proofType === 'box_image' && "📦 Mobile Box"}
+                  {report.proofType === 'purchase_slip' && "🧾 Purchase Slip"}
+                </span>
+              </div>
               
-              {currentUser && report.proofImageUrl && report.proofImageUrl !== 'uploading' && report.proofImageUrl !== null ? (
-                <div className="flex flex-col gap-2">
+              {currentUser && report.proofImageUrl && report.proofImageUrl !== 'uploading' ? (
+                <div className="flex items-center gap-2.5 bg-white/[0.01] p-2 rounded-lg border border-white/5">
                   <img 
-                    src={report.proofImageUrl + '?w=400&q=auto&f=auto'} 
-                    alt="Proof"
+                    src={report.proofImageUrl + '?w=150&q=auto&f=auto'} 
+                    alt="Proof Preview"
                     loading="lazy"
-                    className="w-[121px] h-[121px] object-cover rounded-lg border border-white/10 shadow-lg"
-                    style={{
-                      width: 120,
-                      height: 120,
-                      objectFit: 'cover',
-                      borderRadius: 8
-                    }}
+                    className="w-10 h-10 object-cover rounded border border-white/10 shadow hover:scale-105 transition-transform duration-200 cursor-pointer"
+                    onClick={() => window.open(report.proofImageUrl, '_blank')}
                   />
-                  <a 
-                    href={report.proofImageUrl} 
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download
-                    className="bg-pak-teal/15 border border-pak-teal/40 text-pak-teal px-3 py-1.5 rounded-lg text-[10px] font-bold text-center hover:bg-pak-teal/25 transition-all flex items-center justify-center gap-1"
-                  >
-                    📥 Proof Download Karein
-                  </a>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-white/30 block">DOC REF</span>
+                    <a 
+                      href={report.proofImageUrl} 
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-teal-400 hover:text-white hover:underline text-xs font-bold flex items-center gap-0.5 mt-0.5"
+                    >
+                      📥 View Document
+                    </a>
+                  </div>
                 </div>
               ) : currentUser && report.proofImageUrl === 'uploading' ? (
-                <div className="flex items-center gap-2 text-pak-orange text-[10px] font-bold italic">
-                  <Loader2 size={12} className="animate-spin" />
-                  ⏳ Proof abhi available nahi
+                <div className="flex items-center gap-1.5 text-amber-400/80 text-[10px] font-semibold italic">
+                  <Loader2 size={10} className="animate-spin" />
+                  ⏳ Uploading...
                 </div>
               ) : (
-                <div className="text-white/40 text-[10px] font-bold italic">
-                  📎 Koi proof upload nahi ki gayi
+                <div className="text-white/40 text-[10px] font-semibold italic">
+                  📎 No proof image
                 </div>
               )}
             </div>
           </div>
         )}
-
-        <div className="flex items-center justify-between">
-          <span className="text-white/40 font-medium">📅 {t('feed_loss_date')}</span>
-          <span className="text-white font-bold">{formatDate(report.lossDateTime)}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-white/40 font-medium">📍 Location</span>
-          <span className="text-white font-bold truncate max-w-[150px]">{report.lossLocation}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-white/40 font-medium">👤 {t('feed_registered_by')}</span>
-          <span className="text-white font-bold">
-            {currentUser ? report.ownerName : maskText(report.ownerName)} — {report.city}
-          </span>
-        </div>
       </div>
 
-      {/* Share button visible to all */}
+      {/* Share button nicely integrated at the bottom of the card content */}
       <button
         onClick={() => onShare(report)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          background: 'rgba(37, 211, 102, 0.15)',
-          border: '1.5px solid rgba(37, 211, 102, 0.5)',
-          color: '#25D366',
-          padding: '0.6rem 1.25rem',
-          borderRadius: 10,
-          cursor: 'pointer',
-          fontFamily: "'Outfit', sans-serif",
-          fontWeight: 600,
-          fontSize: '0.9rem',
-          width: '100%',
-          justifyContent: 'center',
-          marginTop: '1.5rem',
-          transition: 'all 0.2s',
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = 'rgba(37, 211, 102, 0.25)';
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = 'rgba(37, 211, 102, 0.15)';
-        }}
+        className="mt-4 flex items-center justify-center gap-1.5 bg-[#25D366]/10 border border-[#25D366]/35 text-[#25D366] hover:bg-[#25D366]/20 py-2.5 rounded-xl w-full text-xs font-black uppercase tracking-widest transition-all duration-200"
       >
-        💬 WhatsApp Pe Share Karein
+        💬 WhatsApp Pe Share
       </button>
     </div>
 
-    {/* Actions Only for Logged In */}
-    <div className="p-4 border-t border-white/5 bg-white/5">
+    {/* Actions footer for logged in users */}
+    <div className="p-3 border-t border-white/5 bg-white/[0.01]">
       {currentUser ? (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2">
           <a 
             href={`https://wa.me/${formatWhatsAppNumber(report.whatsappNumber)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 bg-[#25D366]/20 text-[#25D366] py-3 rounded-xl text-sm font-bold border border-[#25D366]/30 hover:bg-[#25D366]/30 transition-all"
+            className="flex items-center justify-center gap-1.5 bg-[#25D366]/10 text-[#25D366] py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border border-[#25D366]/20 hover:bg-[#25D366]/20 transition-all"
           >
-            <MessageCircle size={18} /> WhatsApp
+            <MessageCircle size={13} /> WhatsApp
           </a>
           <a 
             href={`tel:${report.contactNumber}`}
-            className="flex items-center justify-center gap-2 bg-pak-teal/20 text-pak-teal py-3 rounded-xl text-sm font-bold border border-pak-teal/30 hover:bg-pak-teal/30 transition-all"
+            className="flex items-center justify-center gap-1.5 bg-teal-500/10 text-teal-400 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border border-teal-500/20 hover:bg-teal-500/20 transition-all"
           >
-            <Phone size={18} /> Contact
+            <Phone size={13} /> Contact
           </a>
         </div>
       ) : (
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center p-6 text-center z-10 transition-all pointer-events-none group-hover:pointer-events-auto">
-          <div className="p-6 rounded-2xl glass border border-white/20 shadow-2xl pointer-events-auto">
-            <Lock className="mx-auto text-pak-orange mb-3" size={24} />
-            <p className="text-white text-sm font-bold mb-4">{t('feed_login_prompt')}</p>
+        <div className="absolute inset-0 bg-black/75 backdrop-blur-[3px] flex items-center justify-center p-4 text-center z-10 transition-all opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto duration-300">
+          <div className="p-5 rounded-2xl bg-slate-900 border border-white/10 shadow-xl pointer-events-auto max-w-[240px]">
+            <Lock className="mx-auto text-amber-500 mb-2" size={20} />
+            <p className="text-white text-xs font-extrabold uppercase tracking-wide mb-3 leading-relaxed">{t('feed_login_prompt')}</p>
             <button 
               onClick={signInWithGoogle}
-              className="bg-white text-black px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
+              className="w-full bg-white hover:bg-teal-400 text-slate-950 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-md"
             >
               Unlock with Google
             </button>
@@ -290,72 +303,20 @@ const PhoneCard = memo(({
       )}
     </div>
 
-    {/* Owner/Reporter Options */}
+    {/* Owner Options (Edit/Delete) / Flag option */}
     {currentUser && (
-      <div className="p-4" style={{ 
-        borderTop: '1px solid rgba(255,255,255,0.1)', 
-        paddingTop: '1rem', 
-        marginTop: '1rem' 
-      }}>
+      <div className="p-3 border-t border-white/5 bg-slate-950/20">
         {currentUser.uid === report.userId ? (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             <button
               onClick={() => onEdit(report)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                background: 'rgba(46, 196, 182, 0.15)',
-                border: '1.5px solid rgba(46, 196, 182, 0.5)',
-                color: '#2ec4b6',
-                padding: '0.6rem 1.25rem',
-                borderRadius: 10,
-                cursor: 'pointer',
-                fontFamily: "'Outfit', sans-serif",
-                fontWeight: 600,
-                fontSize: '0.9rem',
-                width: '100%',
-                justifyContent: 'center',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = 'rgba(46, 196, 182, 0.3)';
-                e.currentTarget.style.borderColor = '#2ec4b6';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = 'rgba(46, 196, 182, 0.15)';
-                e.currentTarget.style.borderColor = 'rgba(46, 196, 182, 0.5)';
-              }}
+              className="flex items-center justify-center gap-1.5 bg-teal-500/10 border border-teal-500/30 text-teal-400 hover:bg-teal-500/20 hover:border-teal-400 text-xs font-black uppercase tracking-widest py-2 rounded-xl transition-all duration-200 w-full"
             >
               ✏️ Entry Edit Karein
             </button>
             <button
               onClick={() => onDelete(report.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                background: 'rgba(230, 57, 70, 0.15)',
-                border: '1.5px solid rgba(230, 57, 70, 0.5)',
-                color: '#e63946',
-                padding: '0.6rem 1.25rem',
-                borderRadius: 10,
-                cursor: 'pointer',
-                fontFamily: "'Outfit', sans-serif",
-                fontWeight: 600,
-                fontSize: '0.9rem',
-                width: '100%',
-                justifyContent: 'center',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = 'rgba(230,57,70,0.3)';
-                e.currentTarget.style.borderColor = '#e63946';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = 'rgba(230,57,70,0.15)';
-                e.currentTarget.style.borderColor = 'rgba(230,57,70,0.5)';
-              }}
+              className="flex items-center justify-center gap-1.5 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:border-red-400 text-xs font-black uppercase tracking-widest py-2 rounded-xl transition-all duration-200 w-full"
             >
               🗑️ Apni Entry Delete Karein
             </button>
@@ -363,12 +324,7 @@ const PhoneCard = memo(({
             {report.status !== 'recovered' && (
               <button
                 onClick={() => onRecovery(report)}
-                className="mt-2 w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all hover:bg-pak-teal/20"
-                style={{
-                  background: 'rgba(46, 196, 182, 0.15)',
-                  border: '1.5px solid rgba(46, 196, 182, 0.5)',
-                  color: '#2ec4b6',
-                }}
+                className="flex items-center justify-center gap-1.5 bg-teal-400/10 border border-teal-400/40 text-teal-300 hover:bg-teal-400/25 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200 w-full"
               >
                 ✅ Mujhe Mera Phone Mil Gaya!
               </button>
@@ -377,31 +333,7 @@ const PhoneCard = memo(({
         ) : (
           <button
             onClick={() => onReportFake(report.id)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              background: 'rgba(244, 162, 97, 0.15)',
-              border: '1.5px solid rgba(244, 162, 97, 0.5)',
-              color: '#f4a261',
-              padding: '0.6rem 1.25rem',
-              borderRadius: 10,
-              cursor: 'pointer',
-              fontFamily: "'Outfit', sans-serif",
-              fontWeight: 600,
-              fontSize: '0.9rem',
-              width: '100%',
-              justifyContent: 'center',
-              transition: 'all 0.2s',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = 'rgba(244,162,97,0.3)';
-              e.currentTarget.style.borderColor = '#f4a261';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = 'rgba(244,162,97,0.15)';
-              e.currentTarget.style.borderColor = 'rgba(244,162,97,0.5)';
-            }}
+            className="flex items-center justify-center gap-1.5 bg-amber-500/5 border border-amber-500/20 text-amber-500 hover:bg-amber-500/15 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200 w-full"
           >
             🚩 Report Fake Entry
           </button>
@@ -590,12 +522,23 @@ const FeedPage: React.FC = () => {
     return phone.substring(0, 3) + "●●●●●●●●";
   };
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateValue: any) => {
+    if (!dateValue) return 'N/A';
     try {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      let date: Date;
+      if (dateValue && typeof dateValue.toDate === 'function') {
+        date = dateValue.toDate();
+      } else {
+        date = new Date(dateValue);
+      }
+      if (isNaN(date.getTime())) return String(dateValue);
+      
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}-${month}-${year}`;
     } catch {
-      return dateStr;
+      return String(dateValue);
     }
   };
 
@@ -680,8 +623,8 @@ const FeedPage: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {Array(4).fill(0).map((_, i) => <SkeletonCard key={i} />)}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {Array(6).fill(0).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       ) : phones.length === 0 ? (
         <div className="text-center py-20 card-glass rounded-3xl p-10 border border-white/10">
@@ -691,7 +634,7 @@ const FeedPage: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {phones.map((report, idx) => (
               <PhoneCard 
                 key={report.id}

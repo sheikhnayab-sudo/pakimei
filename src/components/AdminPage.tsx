@@ -173,8 +173,18 @@ const AdminPage: React.FC = () => {
 
   const formatDate = (date: any) => {
     if (!date) return 'N/A';
-    const d = date?.toDate ? date.toDate() : new Date(date);
-    return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    try {
+      const d = date?.toDate ? date.toDate() : new Date(date);
+      if (isNaN(d.getTime())) return String(date);
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      return `${day}-${month}-${year} ${hours}:${minutes}`;
+    } catch {
+      return String(date);
+    }
   };
 
   return (
@@ -441,20 +451,33 @@ const AdminEntryCard = ({ entry, idx, onStatusUpdate, onDelete, onEdit, formatDa
         {/* Profile Section */}
         {entry.selfieImageUrl && entry.selfieImageUrl !== 'uploading' && (
           <div className="flex items-center gap-4 mb-8 p-3 bg-white/5 rounded-2xl border border-white/10 w-fit pr-8">
-            <img
-              src={entry.selfieImageUrl + '?w=200&q=auto&f=auto'}
-              loading="lazy"
-              alt="Owner"
-              style={{
-                width: 90,
-                height: 90,
-                borderRadius: '50%',
-                objectFit: 'cover',
-                border: '3px solid rgba(46,196,182,0.6)',
-                boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
-                flexShrink: 0,
-              }}
-            />
+            <div 
+              className="relative cursor-pointer group/selfie flex-shrink-0"
+              onClick={() => window.open(entry.selfieImageUrl, '_blank')}
+              title="View full-size selfie"
+            >
+              <img
+                src={entry.selfieImageUrl + '?w=200&q=auto&f=auto'}
+                loading="lazy"
+                alt="Owner"
+                style={{
+                  width: 76,
+                  height: 76,
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  border: '2.5px solid rgba(46,196,182,0.6)',
+                  boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+                }}
+              />
+              {/* Hover visual overlay */}
+              <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover/selfie:opacity-100 transition-opacity duration-200">
+                <Eye size={18} className="text-white" />
+              </div>
+              {/* Permanent view indicator badge */}
+              <div className="absolute -bottom-1 -right-1 bg-teal-500 text-slate-950 p-1 rounded-full shadow-lg border border-slate-950 flex items-center justify-center w-5 h-5">
+                <Eye size={11} className="stroke-[3]" />
+              </div>
+            </div>
             <div>
               <div className="font-display font-bold text-white text-xl">
                 {entry.ownerName}

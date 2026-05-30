@@ -1,6 +1,7 @@
 import React, { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import emailjs from '@emailjs/browser';
+import { sendErrorAlertEmail } from './services/emailService';
 import { LanguageProvider } from './context/LanguageContext';
 import { AuthProvider } from './context/AuthContext';
 import { Toaster } from 'react-hot-toast';
@@ -27,6 +28,59 @@ const App: React.FC = () => {
     if (publicKey) {
       emailjs.init(publicKey);
     }
+
+    // Global Error and Rejection Monitor
+    const handleError = (event: ErrorEvent) => {
+      if (
+        event.message?.includes('ResizeObserver') || 
+        event.message?.includes('Extension') ||
+        event.message?.includes('scrolling element')
+      ) {
+        return; // Filter out system/extension noise
+      }
+      sendErrorAlertEmail({
+        errorType: 'Unhandled Browser Exception',
+        errorMessage: event.message || 'Unknown Javascript error',
+        errorStack: event.error?.stack || 'N/A',
+        additionalContext: `Page URL: ${window.location.href}\nUserAgent: ${typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A'}`
+      });
+    };
+
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      let msg = 'Unhandled Promise Rejection';
+      let stack = 'N/A';
+      if (reason instanceof Error) {
+        msg = reason.message;
+        stack = reason.stack || 'N/A';
+      } else if (reason) {
+        msg = typeof reason === 'object' ? JSON.stringify(reason) : String(reason);
+      }
+      
+      // Ignore routine connection/auth cancel noise
+      if (
+        msg.includes('user-cancelled') || 
+        msg.includes('auth/popup-closed-by-user') || 
+        msg.includes('network-error')
+      ) {
+        return;
+      }
+
+      sendErrorAlertEmail({
+        errorType: 'Unhandled Promise Rejection',
+        errorMessage: msg,
+        errorStack: stack,
+        additionalContext: `Page URL: ${window.location.href}\nUserAgent: ${typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A'}`
+      });
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
   }, []);
 
   const LoadingFallback = () => (
