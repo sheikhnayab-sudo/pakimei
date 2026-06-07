@@ -1,27 +1,70 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap');
 @import "tailwindcss";
 
+:root {
+  --navy-900: #f8fafc;
+  --navy-800: #cbd5e1;
+  --navy-950: #f1f5f9;
+  --pak-red: #dc2626;
+  --pak-teal: #0d9488;
+  --pak-text: #0f172a;
+  --pak-muted: rgba(15, 23, 42, 0.65);
+  
+  --bg-gradient: linear-gradient(135deg, #f8fafc, #f1f5f9, #e2e8f0);
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(15, 23, 42, 0.12);
+  --glass-shadow: 0 8px 32px rgba(15, 23, 42, 0.05);
+  --glass-input-bg: rgba(15, 23, 42, 0.04);
+  --glass-input-border: rgba(15, 23, 42, 0.12);
+  --glass-input-color: #0f172a;
+  --glass-header-bg: rgba(255, 255, 255, 0.85);
+  --glass-header-border: rgba(15, 23, 42, 0.08);
+  --blob-opacity: 0.04;
+}
+
+.dark {
+  --navy-900: #0f0c29;
+  --navy-800: #302b63;
+  --navy-950: #0a081a;
+  --pak-red: #e63946;
+  --pak-teal: #2ec4b6;
+  --pak-text: #ffffff;
+  --pak-muted: rgba(255, 255, 255, 0.55);
+  
+  --bg-gradient: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+  --glass-bg: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.15);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --glass-input-bg: rgba(255, 255, 255, 0.06);
+  --glass-input-border: rgba(255, 255, 255, 0.15);
+  --glass-input-color: #ffffff;
+  --glass-header-bg: rgba(255, 255, 255, 0.05);
+  --glass-header-border: rgba(255, 255, 255, 0.1);
+  --blob-opacity: 0.15;
+}
+
 @theme {
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Outfit", sans-serif;
   
-  --color-navy-900: #0f0c29;
-  --color-navy-800: #302b63;
-  --color-navy-950: #0a081a;
-  --color-pak-red: #e63946;
-  --color-pak-teal: #2ec4b6;
-  --color-pak-text: #ffffff;
-  --color-pak-muted: rgba(255, 255, 255, 0.55);
+  --color-navy-900: var(--navy-900);
+  --color-navy-800: var(--navy-800);
+  --color-navy-950: var(--navy-950);
+  --color-pak-red: var(--pak-red);
+  --color-pak-teal: var(--pak-teal);
+  --color-pak-text: var(--pak-text);
+  --color-pak-muted: var(--pak-muted);
 }
 
 body {
-  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+  background: var(--bg-gradient);
   background-attachment: fixed;
   color: var(--color-pak-text);
   font-family: var(--font-sans);
   min-height: 100vh;
   margin: 0;
   overflow-x: hidden;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 .font-display {
@@ -29,11 +72,12 @@ body {
 }
 
 .glass {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--glass-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .blurred {
@@ -50,16 +94,17 @@ body {
 }
 
 .glass-header {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass-header-bg);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--glass-header-border);
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 .glass-input {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #ffffff;
+  background: var(--glass-input-bg);
+  border: 1px solid var(--glass-input-border);
+  color: var(--glass-input-color);
   transition: all 0.3s ease;
 }
 
@@ -72,22 +117,30 @@ body {
 
 /* Global Select & Option Styling */
 select {
-  background: rgba(255, 255, 255, 0.08) !important;
-  color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  background: var(--glass-input-bg) !important;
+  color: var(--glass-input-color) !important;
+  border: 1px solid var(--glass-input-border) !important;
   border-radius: 10px !important;
   padding: 0.8rem 1rem !important;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 1rem center;
   background-size: 1.25rem;
   font-family: 'Plus Jakarta Sans', sans-serif !important;
+  transition: all 0.3s ease;
+}
+
+.dark select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") !important;
+}
+
+.light select, html:not(.dark) select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='black'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") !important;
 }
 
 select option {
-  background: #1e1b3a !important; /* Fixed dark background for options */
-  color: #ffffff !important;
+  background: var(--navy-950) !important;
+  color: var(--glass-input-color) !important;
   padding: 8px 12px !important;
   font-family: 'Plus Jakarta Sans', sans-serif !important;
 }
@@ -95,12 +148,12 @@ select option {
 select option:hover,
 select option:focus,
 select option:checked {
-  background: #302b63 !important;
-  color: #ffffff !important;
+  background: var(--navy-800) !important;
+  color: var(--glass-input-color) !important;
 }
 
 select option[value=""] {
-  color: rgba(255, 255, 255, 0.5) !important;
+  color: var(--color-pak-muted) !important;
 }
 
 .btn-glass-primary {
@@ -139,6 +192,8 @@ select option[value=""] {
   z-index: -1;
   pointer-events: none;
   animation: float 20s infinite alternate ease-in-out;
+  opacity: var(--blob-opacity);
+  transition: opacity 0.3s ease;
 }
 
 @keyframes float {
@@ -150,7 +205,7 @@ select option[value=""] {
 .blob-1 {
   width: 500px;
   height: 500px;
-  background: rgba(120, 80, 255, 0.15);
+  background: rgba(120, 80, 255, 1);
   top: -100px;
   left: -100px;
 }
@@ -158,7 +213,7 @@ select option[value=""] {
 .blob-2 {
   width: 400px;
   height: 400px;
-  background: rgba(0, 200, 255, 0.1);
+  background: rgba(0, 200, 255, 1);
   bottom: 0px;
   right: -100px;
   animation-delay: -5s;
@@ -167,7 +222,7 @@ select option[value=""] {
 .blob-3 {
   width: 300px;
   height: 300px;
-  background: rgba(255, 80, 120, 0.1);
+  background: rgba(255, 80, 120, 1);
   top: 40%;
   left: 30%;
   animation-delay: -10s;

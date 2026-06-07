@@ -2,15 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { Search, PlusCircle, Info, Menu, X, Languages, LogOut, User, LayoutGrid, Mail } from 'lucide-react';
+import { Search, PlusCircle, Info, Menu, X, Languages, LogOut, User, LayoutGrid, Mail, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../firebase';
 import { collection, query, limit, getDocs } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
+import { useTheme } from '../context/ThemeContext';
 
 const Header: React.FC = () => {
   const { t, language, setLanguage } = useLanguage();
   const { currentUser, signInWithGoogle, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [hasNewReports, setHasNewReports] = useState(false);
   const location = useLocation();
@@ -102,10 +104,18 @@ const Header: React.FC = () => {
           <div className="flex items-center gap-4 border-l border-white/10 pl-8">
             <button
               onClick={toggleLanguage}
-              className="flex items-center gap-2 rounded-full bg-white/5 border border-white/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-[#2ec4b6] transition-all hover:bg-white/10 hover:border-pak-teal/50 active:scale-95"
+              className="flex items-center gap-2 rounded-full bg-white/5 border border-white/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-[#2ec4b6] transition-all hover:bg-white/10 hover:border-pak-teal/50 active:scale-95 cursor-pointer"
             >
               <Languages size={14} />
               {language === 'en' ? 'اردو' : 'English'}
+            </button>
+
+            <button
+              onClick={toggleTheme}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 border border-white/10 text-[#2ec4b6] transition-all hover:bg-white/10 hover:border-pak-teal/50 active:scale-95 cursor-pointer"
+              title={theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+            >
+              {theme === 'light' ? <Moon size={15} /> : <Sun size={15} />}
             </button>
 
             {currentUser ? (
@@ -186,15 +196,23 @@ const Header: React.FC = () => {
                 </Link>
               ))}
 
-              <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-white/5">
+              <div className="grid grid-cols-3 gap-3 mt-6 pt-6 border-t border-white/5">
                 <button
                   onClick={() => {
                     toggleLanguage();
                   }}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-white/5 py-3 text-xs font-bold text-pak-teal"
+                  className="flex items-center justify-center gap-1 sm:gap-2 rounded-xl bg-white/5 py-3 text-xs font-bold text-pak-teal cursor-pointer"
                 >
                   <Languages size={14} />
                   {language === 'en' ? 'اردو' : 'EN'}
+                </button>
+
+                <button
+                  onClick={toggleTheme}
+                  className="flex items-center justify-center gap-1 sm:gap-2 rounded-xl bg-white/5 py-3 text-xs font-bold text-pak-teal cursor-pointer"
+                >
+                  {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
+                  {theme === 'light' ? 'Dark' : 'Light'}
                 </button>
 
                 {currentUser ? (
@@ -203,7 +221,7 @@ const Header: React.FC = () => {
                       logout();
                       setIsOpen(false);
                     }}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-pak-red/10 py-3 text-xs font-bold text-pak-red"
+                    className="flex items-center justify-center gap-1 sm:gap-2 rounded-xl bg-pak-red/10 py-3 text-xs font-bold text-pak-red cursor-pointer"
                   >
                     <LogOut size={14} />
                     {t('auth_logout')}
@@ -214,7 +232,7 @@ const Header: React.FC = () => {
                       signInWithGoogle();
                       setIsOpen(false);
                     }}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-pak-teal py-3 text-xs font-bold text-navy-900"
+                    className="flex items-center justify-center gap-1 sm:gap-2 rounded-xl bg-pak-teal py-3 text-xs font-bold text-slate-100 dark:text-navy-900 cursor-pointer"
                   >
                     {t('auth_login')}
                   </button>

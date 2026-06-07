@@ -4,6 +4,7 @@ import emailjs from '@emailjs/browser';
 import { sendErrorAlertEmail } from './services/emailService';
 import { LanguageProvider } from './context/LanguageContext';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { Toaster } from 'react-hot-toast';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -98,9 +99,10 @@ const App: React.FC = () => {
   );
 
   return (
-    <AuthProvider>
-      <LanguageProvider>
-        <Router>
+    <ThemeProvider>
+      <AuthProvider>
+        <LanguageProvider>
+          <Router>
           <div className="min-h-screen selection:bg-pak-teal/30 selection:text-pak-teal">
             {/* Background Blobs */}
             <div className="blob blob-1"></div>
@@ -155,6 +157,7 @@ const App: React.FC = () => {
       </Router>
     </LanguageProvider>
   </AuthProvider>
+  </ThemeProvider>
 );
 };
 

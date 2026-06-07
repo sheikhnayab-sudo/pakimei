@@ -144,18 +144,42 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
       </div>
 
       {!cameraOpen && !captured && (
-        <button 
-          onClick={openCamera} 
-          type="button"
-          className="flex flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-white/10 bg-white/5 p-10 cursor-pointer transition-all hover:border-pak-teal/50 hover:bg-white/10 w-full group"
-        >
-          <div className="rounded-full bg-pak-teal/10 p-5 text-pak-teal group-hover:scale-110 transition-transform">
-            <Camera size={40} />
+        <div className="space-y-4">
+          <button 
+            onClick={openCamera} 
+            type="button"
+            className="flex flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-white/10 bg-white/5 p-10 cursor-pointer transition-all hover:border-pak-teal/50 hover:bg-white/10 w-full group"
+          >
+            <div className="rounded-full bg-pak-teal/10 p-5 text-pak-teal group-hover:scale-110 transition-transform">
+              <Camera size={40} />
+            </div>
+            <div className="text-center font-bold text-white uppercase tracking-widest text-sm">
+              📷 Camera Kholein
+            </div>
+          </button>
+
+          <div className="flex items-center justify-center gap-4 py-1">
+            <span className="h-[1px] bg-white/10 flex-1"></span>
+            <span className="text-xs text-white/40 uppercase tracking-wider font-bold">Ya</span>
+            <span className="h-[1px] bg-white/10 flex-1"></span>
           </div>
-          <div className="text-center font-bold text-white uppercase tracking-widest text-sm">
-            📷 Camera Kholein
-          </div>
-        </button>
+
+          <label className="flex items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 cursor-pointer text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 transition-all">
+            <input 
+              type="file" 
+              accept="image/*" 
+              className="hidden" 
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setCaptured(URL.createObjectURL(file));
+                  onCapture(file);
+                }
+              }} 
+            />
+            📂 Selfie/Tasveer File Upload Karein
+          </label>
+        </div>
       )}
 
       {cameraOpen && (
