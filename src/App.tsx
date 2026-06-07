@@ -90,7 +90,7 @@ const App: React.FC = () => {
       justifyContent: 'center',
       alignItems: 'center',
       height: '60vh',
-      color: 'rgba(255,255,255,0.5)',
+      color: 'var(--color-pak-muted)',
       fontSize: '1rem',
       fontFamily: "'Outfit', sans-serif"
     }}>

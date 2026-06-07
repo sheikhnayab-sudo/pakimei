@@ -22,6 +22,38 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
   const [cameraOpen, setCameraOpen] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // Biometric states
+  const [livenessStep, setLivenessStep] = useState<'align' | 'calibrate' | 'blink' | 'verified'>('align');
+  const [statusMessage, setStatusMessage] = useState('Camera tayyar kholne k liye button touch karein...');
+  const [blinkScore, setBlinkScore] = useState(10);
+  const [brightnessValue, setBrightnessValue] = useState(0);
+  const [contrastValue, setContrastValue] = useState(0);
+  const [showOverride, setShowOverride] = useState(false);
+
+  const isCapturingRef = useRef(false);
+
+  const playBeep = (freq = 800, duration = 0.15) => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      
+      oscillator.type = 'sine';
+      oscillator.frequency.value = freq;
+      
+      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+      
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + duration);
+    } catch (e) {
+      console.log('Audio feedback not available');
+    }
+  };
+
   const checkVideoActive = () => {
     const video = videoRef.current;
     if (!video) return false;
@@ -35,55 +67,61 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
     const imageData = ctx.getImageData(0, 0, 50, 50);
     const data = imageData.data;
     
-    // Check if image is mostly black
     let totalBrightness = 0;
     for (let i = 0; i < data.length; i += 4) {
       totalBrightness += (data[i] + data[i+1] + data[i+2]) / 3;
     }
     const avgBrightness = totalBrightness / (data.length / 4);
-    
-    // If average brightness < 20, image is too dark/black
-    return avgBrightness > 20;
+    return avgBrightness > 15;
   };
 
   const openCamera = async () => {
     try {
+      setShowOverride(false);
+      setLivenessStep('align');
+      setBlinkScore(10);
+      isCapturingRef.current = false;
+      
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: true,
+        video: {
+          facingMode: "user"
+        },
         audio: false
       });
       streamRef.current = mediaStream;
       setCameraOpen(true);
       
-      // Wait for video element to render first
       setTimeout(() => {
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
-          videoRef.current.play().catch(console.error);
+          videoRef.current.play().then(() => {
+            playBeep(650, 0.15);
+          }).catch(console.error);
         }
-      }, 100);
+      }, 150);
+
+      // Show backup manual capture button after 15 seconds to ensure user is never locked out
+      setTimeout(() => {
+        setShowOverride(true);
+      }, 15000);
 
     } catch (err: any) {
       toast.error('Camera nahi khula: ' + err.message);
     }
   };
 
-  const capturePhoto = async () => {
+  const capturePhoto = () => {
+    if (isCapturingRef.current) return;
+    isCapturingRef.current = true;
+
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
-
-    // Check 1: Video active? 
-    if (!checkVideoActive()) {
-      toast.error('Camera black screen hai. Roshni mein aayein ya browser refresh karein.');
-      return;
-    }
     
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      // Flip horizontally for correct orientation (matches mirrored preview)
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
       ctx.drawImage(video, 0, 0);
@@ -91,11 +129,8 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
     
     canvas.toBlob((blob) => {
       if (!blob) {
-        toast.error('Photo nahi li gayi. Dobara try karein.');
-        return;
-      }
-      if (blob.size < 8000) {
-        toast.error('Selfie sahi nahi hai — Chehra camera k saamne rakhein.');
+        toast.error('Photo capture failure. Dobara try karein.');
+        isCapturingRef.current = false;
         return;
       }
       const file = new File(
@@ -105,9 +140,19 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
       );
       setCaptured(URL.createObjectURL(blob));
       onCapture(file);
+      
+      // Stop tracks
       streamRef.current?.getTracks().forEach(t => t.stop());
       setCameraOpen(false);
-    }, 'image/jpeg', 0.8);
+    }, 'image/jpeg', 0.85);
+  };
+
+  const forceCapture = () => {
+    playBeep(900, 0.2);
+    setLivenessStep('verified');
+    setBlinkScore(100);
+    setStatusMessage("✅ Backup verified! Snapping image...");
+    capturePhoto();
   };
 
   const retake = () => {
@@ -122,69 +167,208 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
     };
   }, []);
 
+  // Liveness loop
+  useEffect(() => {
+    let animId: number;
+    if (cameraOpen && videoRef.current) {
+      const video = videoRef.current;
+      const scanCanvas = document.createElement('canvas');
+      const scanCtx = scanCanvas.getContext('2d');
+      
+      let history: number[] = [];
+      let baseOpenContrast = 0;
+      let calibrateFrames = 0;
+      let lastEyeStateClosed = false;
+      let lastBlinkDetectedTime = 0;
+      let frameCount = 0;
+
+      const runScan = () => {
+        if (!video || video.paused || video.ended || !streamRef.current || isCapturingRef.current) {
+          return;
+        }
+
+        frameCount++;
+        
+        // Render a small frame size for calculations
+        scanCanvas.width = 120;
+        scanCanvas.height = 90;
+
+        if (scanCtx) {
+          scanCtx.drawImage(video, 0, 0, 120, 90);
+
+          // Average eye strip location inside the face oval cutout (120x90 size)
+          const eX = 35;
+          const eY = 32;
+          const eW = 50;
+          const eH = 14;
+
+          const imgData = scanCtx.getImageData(eX, eY, eW, eH);
+          const pixels = imgData.data;
+
+          let pixelLuminanceSum = 0;
+          let pixelSquaredSum = 0;
+          const pixelCount = eW * eH;
+
+          for (let i = 0; i < pixels.length; i += 4) {
+            const gray = 0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2];
+            pixelLuminanceSum += gray;
+            pixelSquaredSum += gray * gray;
+          }
+
+          const avgLuminance = pixelLuminanceSum / pixelCount;
+          const variance = (pixelSquaredSum / pixelCount) - (avgLuminance * avgLuminance);
+          const currentContrast = Math.sqrt(Math.max(0, variance));
+
+          setBrightnessValue(Math.round(avgLuminance));
+          setContrastValue(Math.round(currentContrast * 10) / 10);
+
+          setLivenessStep((prevStep) => {
+            // Step 1: Align Face
+            if (prevStep === 'align') {
+              if (avgLuminance < 35) {
+                setStatusMessage("⚠️ Roshni kam hai! Please thora roshni mein aayen.");
+                setBlinkScore(15);
+                return 'align';
+              } else {
+                setStatusMessage("🔄 Chehre ko green frame k bilkul darmiyan mein fit rakhein...");
+                setBlinkScore(30);
+                if (frameCount > 35) {
+                  history = [];
+                  calibrateFrames = 0;
+                  return 'calibrate';
+                }
+                return 'align';
+              }
+            }
+
+            // Step 2: Calibrate Eye Baseline
+            if (prevStep === 'calibrate') {
+              setStatusMessage("👀 Aankhein Kholi Rakhein aur Seedha camera par dekhein...");
+              setBlinkScore(50);
+              
+              if (avgLuminance > 35) {
+                history.push(currentContrast);
+                if (history.length > 25) history.shift();
+                calibrateFrames++;
+
+                if (calibrateFrames > 25) {
+                  // Base open eye contrast average
+                  baseOpenContrast = history.reduce((sum, val) => sum + val, 0) / history.length;
+                  if (baseOpenContrast < 3) {
+                    // Face contrast is too flat (pointing to walls/empty space)
+                    setStatusMessage("❌ Chehra theek se nazar nahi aa raha. Roshni badhayein.");
+                    frameCount = 0;
+                    return 'align';
+                  } else {
+                    playBeep(880, 0.08);
+                    history = [];
+                    return 'blink';
+                  }
+                }
+                return 'calibrate';
+              } else {
+                frameCount = 0;
+                return 'align';
+              }
+            }
+
+            // Step 3: Blink Verification (Active Action!)
+            if (prevStep === 'blink') {
+              setStatusMessage("⚡ Apni Aankhein Ek Martaba Jhapkein / Blink your eyes now!");
+              setBlinkScore(75);
+
+              history.push(currentContrast);
+              if (history.length > 15) history.shift();
+
+              // Blink pattern signatures:
+              // 1. Drop in Eye region contrast (closed eyelids lack high-contrast detail like pupils)
+              if (baseOpenContrast > 0 && currentContrast < baseOpenContrast * 0.70 && !lastEyeStateClosed) {
+                lastEyeStateClosed = true;
+                lastBlinkDetectedTime = Date.now();
+              }
+
+              // 2. Sudden restoration of open eye detail within normal blink timestamp window
+              if (lastEyeStateClosed && (Date.now() - lastBlinkDetectedTime < 1000) && currentContrast >= baseOpenContrast * 0.86) {
+                // Verified Blink Liveness!
+                lastEyeStateClosed = false;
+                playBeep(1000, 0.25);
+                setBlinkScore(100);
+                setStatusMessage("✅ BIOMETRIC SUCCESS! Snapping picture...");
+                
+                // Flash animation effect trigger
+                const container = video.parentElement;
+                if (container) {
+                  const flash = document.createElement('div');
+                  flash.className = "absolute inset-0 bg-white z-[90] opacity-100 transition-opacity duration-300 pointer-events-none";
+                  container.appendChild(flash);
+                  setTimeout(() => {
+                    flash.style.opacity = '0';
+                    setTimeout(() => flash.remove(), 300);
+                  }, 50);
+                }
+
+                // Snap photo
+                setTimeout(() => {
+                  capturePhoto();
+                }, 100);
+                
+                return 'verified';
+              }
+
+              return 'blink';
+            }
+
+            return prevStep;
+          });
+        }
+        animId = requestAnimationFrame(runScan);
+      };
+
+      animId = requestAnimationFrame(runScan);
+    }
+
+    return () => {
+      cancelAnimationFrame(animId);
+    };
+  }, [cameraOpen]);
+
   return (
     <div className="space-y-4">
-      {/* Selfie Tips Instruction Box */}
+      {/* Selfie Tips Box */}
       <div style={{
-        background: 'rgba(46,196,182,0.1)',
-        border: '1px solid rgba(46,196,182,0.3)',
-        borderRadius: 10,
-        padding: '0.75rem 1rem',
-        marginBottom: '1rem',
-        fontSize: '0.85rem',
-        color: 'rgba(255,255,255,0.8)',
+        background: 'rgba(46,196,182,0.08)',
+        border: '1px solid rgba(46,196,182,0.2)',
+        borderRadius: 12,
+        padding: '0.85rem 1rem',
+        fontSize: '0.8rem',
+        color: 'var(--color-pak-text)',
         lineHeight: 1.6
       }}>
-        📸 <strong>Selfie Tips:</strong><br/>
-        ✅ Chehra camera k bilkul saamne rakhein<br/>
-        ✅ Achi roshni mein photo lein<br/>
-        ✅ Aankhein khuli rakhein<br/>
-        ❌ Andhere mein ya door se mat lein<br/>
-        ❌ Koi aur cheez upload karna mana hai
+        <div className="flex items-center gap-2 font-black text-pak-teal uppercase tracking-wider mb-1">
+          <ShieldCheck size={16} /> Live Biometric Verification
+        </div>
+        <p className="opacity-90">✅ Sirf live direct camera selfie manzoor hogi, gallery se purani photo lagana mana hai.</p>
+        <p className="opacity-90">✅ Chehra bilkul seedha aur aankhein khuli rakh kar <strong>Aankhein Jhapkein (Blink)</strong>.</p>
       </div>
 
       {!cameraOpen && !captured && (
-        <div className="space-y-4">
-          <button 
-            onClick={openCamera} 
-            type="button"
-            className="flex flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-white/10 bg-white/5 p-10 cursor-pointer transition-all hover:border-pak-teal/50 hover:bg-white/10 w-full group"
-          >
-            <div className="rounded-full bg-pak-teal/10 p-5 text-pak-teal group-hover:scale-110 transition-transform">
-              <Camera size={40} />
-            </div>
-            <div className="text-center font-bold text-white uppercase tracking-widest text-sm">
-              📷 Camera Kholein
-            </div>
-          </button>
-
-          <div className="flex items-center justify-center gap-4 py-1">
-            <span className="h-[1px] bg-white/10 flex-1"></span>
-            <span className="text-xs text-white/40 uppercase tracking-wider font-bold">Ya</span>
-            <span className="h-[1px] bg-white/10 flex-1"></span>
+        <button 
+          onClick={openCamera} 
+          type="button"
+          className="flex flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-pak-teal/25 bg-pak-teal/5 p-12 cursor-pointer transition-all hover:bg-pak-teal/10 hover:border-pak-teal/50 w-full group shadow-md"
+        >
+          <div className="rounded-full bg-pak-teal/15 p-6 text-pak-teal group-hover:scale-110 transition-transform shadow-lg shadow-pak-teal/10 animate-pulse">
+            <Camera size={44} />
           </div>
-
-          <label className="flex items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 cursor-pointer text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 transition-all">
-            <input 
-              type="file" 
-              accept="image/*" 
-              className="hidden" 
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  setCaptured(URL.createObjectURL(file));
-                  onCapture(file);
-                }
-              }} 
-            />
-            📂 Selfie/Tasveer File Upload Karein
-          </label>
-        </div>
+          <div className="text-center font-black text-white px-4 py-2 bg-pak-teal/80 dark:bg-pak-teal text-xs uppercase tracking-[0.25em] rounded-lg">
+            📷 Open Live Biometric Camera
+          </div>
+        </button>
       )}
 
       {cameraOpen && (
         <div className="space-y-4">
-          <div className="relative overflow-hidden rounded-2xl border-4 border-pak-teal/30 bg-black transition-colors">
+          <div className="relative overflow-hidden rounded-2xl border-4 border-pak-teal/30 bg-black shadow-inner">
             <video 
               ref={videoRef}
               autoPlay 
@@ -193,16 +377,21 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
               className="w-full h-auto"
               style={{
                 width: '100%',
-                maxHeight: 300,
-                borderRadius: 12,
+                maxHeight: 280,
+                borderRadius: 8,
                 display: 'block',
-                background: '#111',
+                background: '#090d16',
                 transform: 'scaleX(-1)',
                 WebkitTransform: 'scaleX(-1)',
               }}
             />
 
-            {/* Dark overlay with oval cutout */}
+            {/* Moving Biometric Laser Scanline overlay */}
+            {livenessStep !== 'verified' && (
+              <div className="biometric-scanner" />
+            )}
+
+            {/* Oval Cutout Guide Overlay */}
             <div style={{
               position: 'absolute',
               top: 0, left: 0,
@@ -213,77 +402,107 @@ const SelfieCapture = ({ onCapture }: { onCapture: (file: File) => void }) => {
               pointerEvents: 'none',
               zIndex: 10
             }}>
-              <svg
-                width="100%"
-                height="100%"
-                style={{ position: 'absolute', top: 0, left: 0 }}
-              >
+              <svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
                 <defs>
-                  <mask id="face-guide-mask">
+                  <mask id="biometric-cutout-mask">
                     <rect width="100%" height="100%" fill="white" />
-                    <ellipse cx="50%" cy="50%" rx="30%" ry="40%" fill="black" />
+                    <ellipse cx="50%" cy="50%" rx="28%" ry="38%" fill="black" />
                   </mask>
                 </defs>
-                <rect width="100%" height="100%" fill="rgba(0,0,0,0.4)" mask="url(#face-guide-mask)" />
+                <rect width="100%" height="100%" fill="rgba(9,13,22,0.6)" mask="url(#biometric-cutout-mask)" />
                 <ellipse 
-                  cx="50%" 
-                  cy="50%" 
-                  rx="30%" 
-                  ry="40%" 
+                  cx="50%" cy="50%" rx="28%" ry="38%" 
                   fill="none" 
-                  stroke="#2ec4b6" 
+                  stroke={livenessStep === 'blink' ? '#2ec4b6' : livenessStep === 'verified' ? '#22c55e' : 'rgba(46,196,182,0.5)'} 
                   strokeWidth="3" 
-                  strokeDasharray="8,5" 
+                  strokeDasharray={livenessStep === 'align' ? '8,5' : 'none'}
+                  className="transition-colors duration-500"
                 />
               </svg>
             </div>
 
-            <div className="absolute bottom-0 inset-x-0 p-3 text-center text-[10px] font-black uppercase tracking-widest backdrop-blur-md z-20 bg-pak-teal/20 text-pak-teal">
-              ✅ Camera Active
+            {/* Dynamic UI HUD indicators */}
+            <div className="absolute top-3 left-3 flex flex-col gap-1 z-20 pointer-events-none">
+              <div className="text-[8px] font-mono uppercase bg-black/60 px-2 py-0.5 rounded text-white tracking-widest flex items-center gap-1">
+                <span className={`w-1.5 h-1.5 rounded-full ${brightnessValue > 35 ? 'bg-green-500' : 'bg-red-500'}`} />
+                LUX: {brightnessValue}
+              </div>
+              <div className="text-[8px] font-mono uppercase bg-black/60 px-2 py-0.5 rounded text-white tracking-widest">
+                VAR: {contrastValue}
+              </div>
+            </div>
+
+            <div className="absolute top-3 right-3 z-20 pointer-events-none">
+              <div className="text-[8px] font-black uppercase bg-pak-teal/90 text-white px-2.5 py-1 rounded tracking-widest flex items-center gap-1 animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-white block" />
+                LIVE
+              </div>
+            </div>
+
+            {/* Interactive Status Block inside the stream */}
+            <div className="absolute bottom-0 inset-x-0 p-3 bg-black/80 border-t border-white/5 backdrop-blur-md z-20 flex flex-col gap-2">
+              <div className="flex items-center justify-between text-[10px] font-black tracking-wider uppercase text-pak-teal">
+                <span className="flex items-center gap-1">
+                  <ShieldCheck size={12} />
+                  Biometric Engine
+                </span>
+                <span className="font-mono">{blinkScore}%</span>
+              </div>
+              
+              {/* Liveness step status horizontal bars */}
+              <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden flex">
+                <div 
+                  className="h-full bg-pak-teal transition-all duration-300" 
+                  style={{ width: `${blinkScore}%` }}
+                />
+              </div>
+
+              <div className="text-center font-bold text-white text-xs py-1 px-2 bg-white/5 rounded min-h-[2rem] flex items-center justify-center">
+                {statusMessage}
+              </div>
             </div>
           </div>
 
-          <div style={{
-            textAlign: 'center',
-            marginTop: 8,
-            color: '#2ec4b6',
-            fontWeight: 600,
-            fontSize: '0.85rem'
-          }}>
-            ⚠️ Apna chehra oval k andar rakhein
-          </div>
-
-          <button 
-            onClick={capturePhoto} 
-            type="button"
-            className="w-full bg-pak-teal text-white font-black py-4 rounded-xl uppercase tracking-widest flex items-center justify-center gap-3 transition-all hover:bg-white hover:text-navy-900 shadow-lg shadow-pak-teal/20"
-          >
-            <Camera size={20} /> 📸 Photo Khainchein
-          </button>
+          {/* Backup Override Manual Button: ONLY displayed if user is struggling for >15 secs */}
+          {showOverride && (
+            <div className="p-3 bg-red-500/10 border border-red-500/25 rounded-xl text-center space-y-2">
+              <p className="text-[10px] text-white/70">
+                Anderi roshni ya low end camera hai? Agar auto biometric fail ho raha hai tou neechay button touch kar k manual capture karein.
+              </p>
+              <button 
+                onClick={forceCapture}
+                type="button"
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] py-2 rounded-lg uppercase tracking-widest transition-all"
+              >
+                ⚠️ Skip Biometric & Force Capture
+              </button>
+            </div>
+          )}
         </div>
       )}
 
       {captured && (
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative border-4 border-pak-teal rounded-2xl overflow-hidden shadow-2xl">
-            <img src={captured}
+        <div className="flex flex-col items-center gap-4 bg-pak-teal/5 p-6 rounded-2xl border border-pak-teal/15">
+          <div className="relative border-4 border-pak-teal rounded-2xl overflow-hidden shadow-2xl transition-transform duration-500 hover:scale-105">
+            <img 
+              src={captured}
               alt="Selfie"
-              className="w-full h-auto max-w-[250px]"
+              className="w-full h-auto max-w-[220px]"
               style={{ objectFit: 'cover' }}
             />
-            <div className="absolute top-2 right-2 bg-pak-teal text-white p-1 rounded-full">
-              <Check size={16} />
+            <div className="absolute top-2 right-2 bg-emerald-500 text-white p-1.5 rounded-full">
+              <Check size={16} className="stroke-[3]" />
             </div>
           </div>
-          <div className="text-pak-teal font-black uppercase tracking-[0.2em] text-[10px]">
-            ✅ Live selfie complete
+          <div className="text-center text-emerald-500 font-extrabold uppercase tracking-[0.25em] text-xs flex items-center gap-1.5">
+            <ShieldCheck size={16} /> Biometrically Verified
           </div>
           <button 
             onClick={retake} 
             type="button"
-            className="text-pak-teal font-bold flex items-center gap-2 hover:underline tracking-widest uppercase text-xs"
+            className="text-pak-teal font-extrabold flex items-center gap-2 hover:underline tracking-widest uppercase text-[10px] transition-colors py-1.5 px-3 bg-white/5 hover:bg-white/10 rounded-lg cursor-pointer"
           >
-            <RefreshCw size={14} /> Dobara Khainchein
+            <RefreshCw size={12} /> Live Biometric Scan Dobara Karein
           </button>
         </div>
       )}

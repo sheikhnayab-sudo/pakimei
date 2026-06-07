@@ -6,19 +6,19 @@
   --navy-800: #cbd5e1;
   --navy-950: #f1f5f9;
   --pak-red: #dc2626;
-  --pak-teal: #0d9488;
+  --pak-teal: #0c9488;
   --pak-text: #0f172a;
   --pak-muted: rgba(15, 23, 42, 0.65);
   
-  --bg-gradient: linear-gradient(135deg, #f8fafc, #f1f5f9, #e2e8f0);
-  --glass-bg: rgba(255, 255, 255, 0.75);
-  --glass-border: rgba(15, 23, 42, 0.12);
-  --glass-shadow: 0 8px 32px rgba(15, 23, 42, 0.05);
-  --glass-input-bg: rgba(15, 23, 42, 0.04);
-  --glass-input-border: rgba(15, 23, 42, 0.12);
+  --bg-gradient: linear-gradient(135deg, #f8fafc, #f1f5f9, #f8fafc);
+  --glass-bg: #ffffff;
+  --glass-border: rgba(15, 23, 42, 0.08);
+  --glass-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.02), 0 10px 30px -10px rgba(15, 23, 42, 0.06), 0 20px 45px -15px rgba(15, 23, 42, 0.04);
+  --glass-input-bg: rgba(15, 23, 42, 0.02);
+  --glass-input-border: rgba(15, 23, 42, 0.09);
   --glass-input-color: #0f172a;
-  --glass-header-bg: rgba(255, 255, 255, 0.85);
-  --glass-header-border: rgba(15, 23, 42, 0.08);
+  --glass-header-bg: rgba(255, 255, 255, 0.95);
+  --glass-header-border: rgba(15, 23, 42, 0.06);
   --blob-opacity: 0.04;
 }
 
@@ -102,7 +102,7 @@ body {
 }
 
 .glass-input {
-  background: var(--glass-input-bg);
+  background-color: var(--glass-input-bg);
   border: 1px solid var(--glass-input-border);
   color: var(--glass-input-color);
   transition: all 0.3s ease;
@@ -112,30 +112,36 @@ body {
   border-color: rgba(46, 196, 182, 0.6);
   box-shadow: 0 0 0 3px rgba(46, 196, 182, 0.15);
   outline: none;
-  background: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Global Select & Option Styling */
 select {
-  background: var(--glass-input-bg) !important;
+  background-color: var(--glass-input-bg) !important;
   color: var(--glass-input-color) !important;
   border: 1px solid var(--glass-input-border) !important;
   border-radius: 10px !important;
-  padding: 0.8rem 1rem !important;
-  appearance: none;
-  background-repeat: no-repeat;
-  background-position: right 1rem center;
-  background-size: 1.25rem;
+  padding: 0.8rem 2.25rem 0.8rem 1rem !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-repeat: no-repeat !important;
+  background-position: right 1rem center !important;
+  background-size: 1.15rem !important;
   font-family: 'Plus Jakarta Sans', sans-serif !important;
   transition: all 0.3s ease;
 }
 
 .dark select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 1rem center !important;
 }
 
 .light select, html:not(.dark) select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='black'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%230f171c'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 1rem center !important;
 }
 
 select option {
@@ -226,4 +232,133 @@ select option[value=""] {
   top: 40%;
   left: 30%;
   animation-delay: -10s;
+}
+
+/* ==========================================
+   CUSTOM LIGHT MODE OVERRIDES
+   Ensures absolute high contrast and readability of all elements
+   ========================================== */
+
+html:not(.dark) {
+  --color-pak-text: var(--pak-text);
+  --color-pak-muted: var(--pak-muted);
+}
+
+/* Light Mode Overrides for Hardcoded White Text classes used in Tailwind */
+html:not(.dark) .text-white {
+  color: #0f172a !important;
+}
+html:not(.dark) .text-white\/95 { color: rgba(15, 23, 42, 0.95) !important; }
+html:not(.dark) .text-white\/90 { color: rgba(15, 23, 42, 0.9) !important; }
+html:not(.dark) .text-white\/85 { color: rgba(15, 23, 42, 0.85) !important; }
+html:not(.dark) .text-white\/80 { color: rgba(15, 23, 42, 0.8) !important; }
+html:not(.dark) .text-white\/75 { color: rgba(15, 23, 42, 0.75) !important; }
+html:not(.dark) .text-white\/70 { color: rgba(15, 23, 42, 0.7) !important; }
+html:not(.dark) .text-white\/65 { color: rgba(15, 23, 42, 0.65) !important; }
+html:not(.dark) .text-white\/60 { color: rgba(15, 23, 42, 0.6) !important; }
+html:not(.dark) .text-white\/55 { color: rgba(15, 23, 42, 0.55) !important; }
+html:not(.dark) .text-white\/50 { color: rgba(15, 23, 42, 0.5) !important; }
+html:not(.dark) .text-white\/45 { color: rgba(15, 23, 42, 0.45) !important; }
+html:not(.dark) .text-white\/40 { color: rgba(15, 23, 42, 0.4) !important; }
+html:not(.dark) .text-white\/30 { color: rgba(15, 23, 42, 0.3) !important; }
+html:not(.dark) .text-white\/20 { color: rgba(15, 23, 42, 0.2) !important; }
+html:not(.dark) .text-white\/10 { color: rgba(15, 23, 42, 0.1) !important; }
+
+/* Light Mode Overrides for Hardcoded Slate text classes so they remain legible */
+html:not(.dark) .text-slate-100 { color: #0f172a !important; }
+html:not(.dark) .text-slate-200 { color: rgba(15, 23, 42, 0.95) !important; }
+html:not(.dark) .text-slate-300 { color: rgba(15, 23, 42, 0.85) !important; }
+html:not(.dark) .text-slate-400 { color: rgba(15, 23, 42, 0.75) !important; }
+
+/* In Light Mode, prevent hardcoded white borders from disappearing */
+html:not(.dark) .border-white\/10 {
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+html:not(.dark) .border-white\/20 {
+  border-color: rgba(15, 23, 42, 0.18) !important;
+}
+html:not(.dark) .border-white\/15 {
+  border-color: rgba(15, 23, 42, 0.14) !important;
+}
+html:not(.dark) .border-white\/5 {
+  border-color: rgba(15, 23, 42, 0.06) !important;
+}
+html:not(.dark) .border-white\/30 {
+  border-color: rgba(15, 23, 42, 0.25) !important;
+}
+
+/* Maintain proper faint contrast for glass backgrounds */
+html:not(.dark) .bg-white\/5:not(button):not(.btn) {
+  background-color: rgba(15, 23, 42, 0.03) !important;
+}
+html:not(.dark) .bg-white\/10:not(button):not(.btn) {
+  background-color: rgba(15, 23, 42, 0.05) !important;
+}
+html:not(.dark) .bg-white\/20:not(button):not(.btn) {
+  background-color: rgba(15, 23, 42, 0.09) !important;
+}
+
+/* Ensure placeholder texts in inputs adapt beautifully to light theme */
+html:not(.dark) input::placeholder,
+html:not(.dark) textarea::placeholder,
+html:not(.dark) .placeholder\:text-white\/20::placeholder,
+html:not(.dark) .placeholder\:text-white\/30::placeholder {
+  color: rgba(15, 23, 42, 0.4) !important;
+}
+
+/* ==========================================
+   SOLID BACKGROUND EXCEPTIONS
+   Ensures text on primary teal/red colored elements (or dark badges/toasts) stays white
+   ========================================== */
+
+html:not(.dark) button .text-white,
+html:not(.dark) .btn-glass-primary,
+html:not(.dark) .btn-glass-primary * ,
+html:not(.dark) [class*="bg-pak-teal"] .text-white,
+html:not(.dark) .bg-pak-teal,
+html:not(.dark) .bg-pak-teal *,
+html:not(.dark) .bg-pak-teal svg,
+html:not(.dark) [class*="bg-pak-red"] .text-white,
+html:not(.dark) .bg-pak-red,
+html:not(.dark) .bg-pak-red *,
+html:not(.dark) .bg-pak-red svg,
+html:not(.dark) .bg-red-600,
+html:not(.dark) .bg-red-600 *,
+html:not(.dark) .bg-red-600 svg,
+html:not(.dark) .bg-emerald-600,
+html:not(.dark) .bg-emerald-600 *,
+html:not(.dark) .bg-[#2ec4b6],
+html:not(.dark) .bg-[#2ec4b6] *,
+html:not(.dark) .bg-[#25D366],
+html:not(.dark) .bg-[#25D366] *,
+html:not(.dark) .bg-[#25D366] svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+html:not(.dark) .text-pak-teal {
+  color: var(--pak-teal) !important;
+}
+html:not(.dark) .text-pak-red {
+  color: var(--pak-red) !important;
+}
+
+/* Biometric Scanner Styles */
+@keyframes biometric-scan {
+  0% { top: 12%; }
+  50% { top: 88%; }
+  100% { top: 12%; }
+}
+
+.biometric-scanner {
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  height: 4px;
+  background: linear-gradient(90deg, transparent, #2ec4b6, transparent);
+  box-shadow: 0 0 10px #2ec4b6, 0 0 20px #2ec4b6;
+  z-index: 15;
+  pointer-events: none;
+  border-radius: 50%;
+  animation: biometric-scan 3.5s ease-in-out infinite;
 }
